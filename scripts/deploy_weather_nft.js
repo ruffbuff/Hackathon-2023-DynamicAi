@@ -1,0 +1,1 @@
+// scripts/deploy_weather_nft.js
