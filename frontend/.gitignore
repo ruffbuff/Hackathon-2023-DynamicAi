@@ -1,5 +1,4 @@
 .env
 node_modules
-cache
-artifacts
+package-lock.json
 t.txt
