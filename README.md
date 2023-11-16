@@ -1,12 +1,11 @@
-```shell
-git clone https://github.com/RuffBuff/weather_test_DNFT-ERC-721.git
-```
+## Hackathon:
 
-```shell
-npm install
-```
+```bash
 
-### Open terminal in dir where clone is and write:
-```shell
-npx hardhat test
+Wallet1: ...
+Wallet2: ...
+
+TeamMember1: ...
+TeamMember2: ...
+
 ```
