@@ -40,9 +40,9 @@ contract WeatherNFT is AutomationCompatibleInterface, ERC721Enumerable, VRFConsu
     mapping(uint256 => string[4]) private uriBatches;
     mapping(uint256 => uint256) private nextURIIndex;
     mapping(uint256 => uint256) private nextUpdateTime;
+    mapping(uint256 => uint256) private expirationTimes;
 
     address public dev1;
-    address public dev2;
     address public operator;
     VRFCoordinatorV2Interface COORDINATOR;
 
@@ -55,11 +55,6 @@ contract WeatherNFT is AutomationCompatibleInterface, ERC721Enumerable, VRFConsu
 
     modifier onlyDev1() {
         require(msg.sender == dev1, "Caller is not dev1");
-        _;
-    }
-
-    modifier onlyDev2() {
-        require(msg.sender == dev2, "Caller is not dev2");
         _;
     }
 
@@ -94,42 +89,52 @@ contract WeatherNFT is AutomationCompatibleInterface, ERC721Enumerable, VRFConsu
         validStyles["Cartoon"] = true;
         validStyles["Free"] = true;
         validStyles["Minecraft"] = true;
-        validStyles["Retoro"] = true;
+        validStyles["Retro"] = true;
         validStyles["Cyberpunk"] = true;
     }
 
     function checkUpkeep(bytes calldata /* checkData */) external view override returns (bool upkeepNeeded, bytes memory performData) {
-        uint256[] memory tokensToUpdate;
-        uint256 numTokensToUpdate = 0;
+        uint256[] memory tokensToBurn;
+        uint256 numTokensToBurn = 0;
 
         for (uint256 i = 1; i <= totalSupply(); i++) {
-            if (block.timestamp >= nextUpdateTime[i]) {
-                numTokensToUpdate++;
+            if (block.timestamp >= nextUpdateTime[i] || block.timestamp >= expirationTimes[i]) {
+                numTokensToBurn++;
             }
         }
 
-        if (numTokensToUpdate > 0) {
-            tokensToUpdate = new uint256[](numTokensToUpdate);
+        if (numTokensToBurn > 0) {
+            tokensToBurn = new uint256[](numTokensToBurn);
             uint256 counter = 0;
             for (uint256 i = 1; i <= totalSupply(); i++) {
-                if (block.timestamp >= nextUpdateTime[i]) {
-                    tokensToUpdate[counter] = i;
+                if (block.timestamp >= nextUpdateTime[i] || block.timestamp >= expirationTimes[i]) {
+                    tokensToBurn[counter] = i;
                     counter++;
                 }
             }
             upkeepNeeded = true;
-            performData = abi.encode(tokensToUpdate);
+            performData = abi.encode(tokensToBurn);
         } else {
             upkeepNeeded = false;
         }
     }
 
     function performUpkeep(bytes calldata performData) external override {
-        uint256[] memory tokensToUpdate = abi.decode(performData, (uint256[]));
-        for (uint256 i = 0; i < tokensToUpdate.length; i++) {
-            updateTokenURI(tokensToUpdate[i]);
-            emit UpkeepPerformed(tokensToUpdate[i], _tokenURIs[tokensToUpdate[i]]);
+        uint256[] memory tokensToBurn = abi.decode(performData, (uint256[]));
+        for (uint256 i = 0; i < tokensToBurn.length; i++) {
+            if (block.timestamp >= expirationTimes[tokensToBurn[i]]) {
+                burn(tokensToBurn[i]);
+            } else {
+                updateTokenURI(tokensToBurn[i]);
+            }
         }
+    }
+
+    function burn(uint256 tokenId) public {
+        // require(msg.sender == operator, "Caller is not operator");
+        delete weatherTokens[tokenId];
+        delete uriBatches[tokenId];
+        delete expirationTimes[tokenId];
     }
 
     function calculateNextUpdateTime(int8 timeZone) private view returns (uint256) {
@@ -201,40 +206,32 @@ contract WeatherNFT is AutomationCompatibleInterface, ERC721Enumerable, VRFConsu
         }
     }
 
-    function addURIBatch(uint256 tokenId, string[4] memory uris) public {
-        // require(msg.sender == dev2, "Caller is not dev2");
+    function addURIBatch(uint256 tokenId, string[4] memory uris, uint256 expirationTime) public {
+        // require(msg.sender == operator, "Caller is not operator");
         require(tokenExists(tokenId), "Token ID does not exist");
-
         uriBatches[tokenId] = uris;
-        uint256 index = calculateInitialURIIndex(tokenId, countryTimeZones[weatherTokens[tokenId].country]);
+        int8 timeZone = countryTimeZones[weatherTokens[tokenId].country];
+        uint256 index = calculateInitialURIIndex(timeZone);
         _setTokenURI(tokenId, uriBatches[tokenId][index]);
         nextURIIndex[tokenId] = (index + 1) % uriBatches[tokenId].length;
-
-        int8 timeZone = countryTimeZones[weatherTokens[tokenId].country];
         nextUpdateTime[tokenId] = block.timestamp + calculateNextUpdateTime(timeZone);
-
+        expirationTimes[tokenId] = expirationTime;
         emit URIBatchAdded(tokenId, uris);
     }
 
-    function keeperSetURI(uint256 tokenId) public {
-        // require(msg.sender == operator, "Caller is not operator");
-        require(tokenExists(tokenId), "Token ID does not exist");
-        require(nextURIIndex[tokenId] < uriBatches[tokenId].length, "No URIs to set");
-
-        int8 timeZone = countryTimeZones[weatherTokens[tokenId].country];
+    function calculateInitialURIIndex(int8 timeZone) private view returns (uint256) {
         uint256 localTime = calculateLocalTime(block.timestamp, timeZone);
-        uint256 index = (localTime % 1 days) / (6 hours);
+        uint256 timeOfDay = localTime % 1 days;
 
-        _setTokenURI(tokenId, uriBatches[tokenId][index]);
-        nextURIIndex[tokenId] = (index + 1) % uriBatches[tokenId].length;
-        nextUpdateTime[tokenId] = block.timestamp + calculateNextUpdateTime(timeZone);
-    }
-
-    function calculateInitialURIIndex(uint256 tokenId, int8 timeZone) private view returns (uint256) {
-        uint256 localTime = calculateLocalTime(block.timestamp, timeZone);
-        uint256 timeOfDay = (localTime % 1 days);
-        uint256 index = timeOfDay / (6 hours);
-        return index % uriBatches[tokenId].length;
+        if (timeOfDay < 6 hours) {
+            return 3;
+        } else if (timeOfDay < 12 hours) {
+            return 0;
+        } else if (timeOfDay < 18 hours) {
+            return 1;
+        } else {
+            return 2;
+        }
     }
 
     function calculateLocalTime(uint256 timestamp, int8 timeZone) private pure returns (uint256) {
@@ -269,8 +266,7 @@ contract WeatherNFT is AutomationCompatibleInterface, ERC721Enumerable, VRFConsu
         _tokenURIs[tokenId] = uri;
     }
 
-    function setupRoles(address _dev2, address _operator) external onlyDev1 {
-        dev2 = _dev2;
+    function setUpOperator(address _operator) external onlyDev1 {
         operator = _operator;
     }
 }
