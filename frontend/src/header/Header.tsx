@@ -1,70 +1,27 @@
-// frontend/src/header/Header.tsx
-import { Box, Button, useToast } from '@chakra-ui/react';
-import { ethers } from 'ethers';
-import React, { useEffect, useState } from 'react';
-import { contracts } from '../sol/contracts';
-import './Header.css';
+import React from 'react';
+import {
+  Box,
+  Image,
+  Text,
+  VStack,
+  Heading,
+} from '@chakra-ui/react';
 
-const contractABI = contracts.weatherContract.abi;
-const contractAddress = contracts.weatherContract.address;
-
-interface HeaderProps {
-  walletConnected: boolean;
-}
-
-function Header({ walletConnected }: HeaderProps) {
-  const [canMint, setCanMint] = useState(false);
-  const toast = useToast();
-
-  useEffect(() => {
-    setCanMint(walletConnected);
-  }, [walletConnected]);
-
-  const mintNFT = async () => {
-    if (contractAddress && canMint) {
-      const provider = new ethers.providers.Web3Provider(window.ethereum);
-      const signer = provider.getSigner();
-      const contract = new ethers.Contract(contractAddress, contractABI, signer);
-  
-      try {
-        const tx = await contract.mint();
-        await tx.wait();
-        toast({
-          title: 'NFT minted successfully!',
-          status: 'success',
-          duration: 5000,
-          isClosable: true,
-        });
-      } catch (error) {
-        console.error('Error minting NFT:', error);
-    
-        let errorMessage = 'An unknown error occurred';
-        if (error instanceof Error) {
-          errorMessage = error.message;
-        }
-    
-        toast({
-          title: 'Error minting NFT',
-          description: errorMessage,
-          status: 'error',
-          duration: 5000,
-          isClosable: true,
-        });
-      }
-    }
-  };
-
+function Header() {
   return (
     <Box className="header-container">
-      {!walletConnected ? (
-        <Box>
-          <p>Connect your wallet</p>
+      <VStack spacing={4} align="stretch" className="content-box">
+        <Box className="image-box">
+          <Image src="path_to_image.jpg" alt="Description" boxSize="150px"/>
         </Box>
-      ) : (
-        <Button colorScheme="teal" onClick={mintNFT}>
-          Mint Free NFT
-        </Button>
-      )}
+        <Box className="info-box">
+          <Heading as="h2" size="xl">Header</Heading>
+          <Text fontSize="md">Info here.</Text>
+        </Box>
+        <Box className="additional-info-box">
+          <Text fontSize="sm">More info here.</Text>
+        </Box>
+      </VStack>
     </Box>
   );
 }
