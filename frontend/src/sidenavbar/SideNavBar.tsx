@@ -1,13 +1,19 @@
 // frontend/components/SideNavBar.tsx
-import { ConnectWallet } from "@thirdweb-dev/react";
+import { ConnectWallet, useAddress } from "@thirdweb-dev/react";
 import 'bootstrap/dist/css/bootstrap.min.css';
 import './SideNavBar.css';
+import React from 'react';
 
-interface SideNavBarProps {
-  onWalletConnect: (connected: boolean) => void;
-}
+function SideNavBar() {
 
-function SideNavBar({ onWalletConnect }: SideNavBarProps) {
+  const address = useAddress();
+
+  React.useEffect(() => {
+    if (address) {
+      console.log(`Wallet connected: ${address}`);
+    }
+  }, [address]);
+
   return (
     <>
     <div className="side-nav-bar">
