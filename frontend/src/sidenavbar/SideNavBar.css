@@ -10,6 +10,10 @@
   padding: 1rem;
 }
 
+.side-nav-bar.visible {
+  left: 0; /* Show sidebar when visible */
+}
+
 .trigger {
   width: 40px;
   height: 100%;
