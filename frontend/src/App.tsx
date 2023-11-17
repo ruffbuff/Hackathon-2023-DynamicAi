@@ -1,5 +1,4 @@
 // frontend/src/App.tsx
-import React, { useState } from 'react';
 import SideNavBar from './sidenavbar/SideNavBar';
 import Header from './header/Header';
 import {
@@ -11,12 +10,7 @@ import {
 } from "@thirdweb-dev/react";
 
 function App() {
-  const [walletConnected, setWalletConnected] = useState(false);
-
-  const handleWalletConnect = (connected: boolean) => {
-    setWalletConnected(connected);
-  };
-
+  
   return (
     <ThirdwebProvider
     activeChain="mumbai"
@@ -28,8 +22,8 @@ function App() {
       rainbowWallet(),
     ]}
   >
-      <SideNavBar onWalletConnect={handleWalletConnect} />
-      <Header walletConnected={walletConnected} />
+      <SideNavBar />
+      <Header />
     </ThirdwebProvider>
   );
 }
