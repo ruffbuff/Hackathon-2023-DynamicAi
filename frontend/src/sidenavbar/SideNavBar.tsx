@@ -14,7 +14,7 @@ function SideNavBar() {
     }
   };
 
-  React.useEffect(() => {
+  useEffect(() => {
     document.addEventListener("mousedown", handleClickOutside as unknown as EventListener);
     return () => {
       document.removeEventListener("mousedown", handleClickOutside as unknown as EventListener);
@@ -41,8 +41,7 @@ function SideNavBar() {
             subtitle: "",
           }}
         />
-        <ul className="nav nav-pills flex-column mb-auto">
-        </ul>
+
       </div>
     </>
   );
