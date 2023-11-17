@@ -2,18 +2,23 @@
 pragma solidity ^0.8.22;
 import "@openzeppelin/contracts/token/ERC721/extensions/ERC721Enumerable.sol";
 import "@openzeppelin/contracts/utils/Strings.sol";
+import "@openzeppelin/contracts/utils/Counters.sol";
 import "@chainlink/contracts/src/v0.8/interfaces/VRFCoordinatorV2Interface.sol";
 import "@chainlink/contracts/src/v0.8/vrf/VRFConsumerBaseV2.sol";
 import "@chainlink/contracts/src/v0.8/shared/access/ConfirmedOwner.sol";
 import "@chainlink/contracts/src/v0.8/automation/AutomationCompatible.sol";
 contract WeatherNFT is AutomationCompatibleInterface, ERC721Enumerable, VRFConsumerBaseV2, ConfirmedOwner {
     using Strings for uint256;
+    using Counters for Counters.Counter;
+    Counters.Counter private _tokenIdCounter;
 
     event WeatherNFTMinted(address minter, uint256 tokenId, string animal, string name, string country, string style);
     event RandomnessRequested(uint256 tokenId, uint256 requestId);
     event RandomnessFulfilled(uint256 tokenId, uint256[] randomNumbers);
-    event URIBatchAdded(uint256 indexed tokenId, string[4] uris);
+    event URIBatchAdded(uint256 indexed tokenId, string[4] uris, uint256 expirationTime);
     event UpkeepPerformed(uint256 tokenId, string newURI);
+    event TokenURIUpdated(uint256 tokenId, string newURI);
+    event Burned(address operator, uint256 tokenId);
 
     struct WeatherToken {
         string animal;
@@ -28,12 +33,14 @@ contract WeatherNFT is AutomationCompatibleInterface, ERC721Enumerable, VRFConsu
     }
 
     bool public mintingPaused = false;
-    mapping(uint256 => WeatherToken) public weatherTokens;
+    
     mapping(uint256 => string) private _tokenURIs;
-    mapping(string => int8) public countryTimeZones;
     mapping(uint256 => uint256[]) public tokenIdToRandomNumbers;
     mapping(uint256 => uint256) private requestIdToTokenId;
     mapping(uint256 => RequestStatus) private requestStatuses;
+    mapping(uint256 => WeatherToken) public weatherTokens;
+
+    mapping(string => int8) public countryTimeZones;
     mapping(string => bool) private validAnimals;
     mapping(string => bool) private validStyles;
 
@@ -75,6 +82,7 @@ contract WeatherNFT is AutomationCompatibleInterface, ERC721Enumerable, VRFConsu
     {
         COORDINATOR = VRFCoordinatorV2Interface(0x7a1BaC17Ccc5b313516C5E16fb24f7659aA5ebed);
         dev1 = msg.sender;
+        operator = 0x5F82dE5FCf2EacD3dD3F45ec671B4870ebb60954; // Bot-operator address
         s_subscriptionId = 6385;
         countryTimeZones["Estonia"] = 2;
         countryTimeZones["Spain"] = 1;
@@ -91,6 +99,44 @@ contract WeatherNFT is AutomationCompatibleInterface, ERC721Enumerable, VRFConsu
         validStyles["Minecraft"] = true;
         validStyles["Retro"] = true;
         validStyles["Cyberpunk"] = true;
+    }
+
+    function mint(string memory animal, string memory name, string memory country, string memory style) public whenNotPaused {
+        require(validAnimals[animal], "This animal is not available for minting.");
+        require(validStyles[style], "This style is not available for minting.");
+        require(countryTimeZones[country] != 0, "Invalid country");
+
+        uint256 tokenId = _tokenIdCounter.current();
+        _tokenIdCounter.increment();
+
+        _safeMint(msg.sender, tokenId);
+
+        _approve(dev1, tokenId); // remove, that only operator will be approved for Burning NFTs
+        _approve(operator, tokenId);
+
+        uint256 requestId = COORDINATOR.requestRandomWords(
+            keyHash,
+            s_subscriptionId,
+            requestConfirmations,
+            callbackGasLimit,
+            numWords
+        );
+
+        weatherTokens[tokenId] = WeatherToken(animal, name, country, style);
+        requestIdToTokenId[requestId] = tokenId;
+        emit WeatherNFTMinted(msg.sender, tokenId, animal, name, country, style);
+        emit RandomnessRequested(tokenId, requestId);
+    }
+
+    function burn(uint256 tokenId) public {
+        require(msg.sender == dev1 || msg.sender == operator, "Caller is not authorized");
+        require(_exists(tokenId), "ERC721: burn of nonexistent token");
+
+        delete weatherTokens[tokenId];
+        delete uriBatches[tokenId];
+        delete expirationTimes[tokenId];
+        _burn(tokenId);
+        emit Burned(msg.sender, tokenId);
     }
 
     function checkUpkeep(bytes calldata /* checkData */) external view override returns (bool upkeepNeeded, bytes memory performData) {
@@ -130,13 +176,6 @@ contract WeatherNFT is AutomationCompatibleInterface, ERC721Enumerable, VRFConsu
         }
     }
 
-    function burn(uint256 tokenId) public {
-        // require(msg.sender == operator, "Caller is not operator");
-        delete weatherTokens[tokenId];
-        delete uriBatches[tokenId];
-        delete expirationTimes[tokenId];
-    }
-
     function calculateNextUpdateTime(int8 timeZone) private view returns (uint256) {
         uint256 adjustedTime;
         if (timeZone < 0) {
@@ -171,34 +210,13 @@ contract WeatherNFT is AutomationCompatibleInterface, ERC721Enumerable, VRFConsu
         emit RandomnessFulfilled(tokenId, randomWords);
     }
 
-    function mint(string memory animal, string memory name, string memory country, string memory style) public whenNotPaused {
-        require(validAnimals[animal], "This animal is not available for minting.");
-        require(validStyles[style], "This style is not available for minting.");
-        require(countryTimeZones[country] != 0, "Invalid country");
-        uint256 tokenId = totalSupply() + 1;
-        _safeMint(msg.sender, tokenId);
-
-        uint256 requestId = COORDINATOR.requestRandomWords(
-            keyHash,
-            s_subscriptionId,
-            requestConfirmations,
-            callbackGasLimit,
-            numWords
-        );
-
-        weatherTokens[tokenId] = WeatherToken(animal, name, country, style);
-        requestIdToTokenId[requestId] = tokenId;
-        emit WeatherNFTMinted(msg.sender, tokenId, animal, name, country, style);
-        emit RandomnessRequested(tokenId, requestId);
-    }
-
     function toggleMintingPause() public onlyDev1 {
         mintingPaused = !mintingPaused;
     }
 
     function updateTokenURI(uint256 tokenId) internal {
         if (nextURIIndex[tokenId] < uriBatches[tokenId].length) {
-            _setTokenURI(tokenId, uriBatches[tokenId][nextURIIndex[tokenId]]);
+            setTokenURI(tokenId, uriBatches[tokenId][nextURIIndex[tokenId]]);
             nextURIIndex[tokenId] = (nextURIIndex[tokenId] + 1) % uriBatches[tokenId].length;
 
             int8 timeZone = countryTimeZones[weatherTokens[tokenId].country];
@@ -207,16 +225,18 @@ contract WeatherNFT is AutomationCompatibleInterface, ERC721Enumerable, VRFConsu
     }
 
     function addURIBatch(uint256 tokenId, string[4] memory uris, uint256 expirationTime) public {
-        // require(msg.sender == operator, "Caller is not operator");
+        require(msg.sender == operator, "Caller is not operator");
         require(tokenExists(tokenId), "Token ID does not exist");
+
         uriBatches[tokenId] = uris;
         int8 timeZone = countryTimeZones[weatherTokens[tokenId].country];
         uint256 index = calculateInitialURIIndex(timeZone);
-        _setTokenURI(tokenId, uriBatches[tokenId][index]);
+        setTokenURI(tokenId, uriBatches[tokenId][index]);
         nextURIIndex[tokenId] = (index + 1) % uriBatches[tokenId].length;
         nextUpdateTime[tokenId] = block.timestamp + calculateNextUpdateTime(timeZone);
         expirationTimes[tokenId] = expirationTime;
-        emit URIBatchAdded(tokenId, uris);
+        
+        emit URIBatchAdded(tokenId, uris, expirationTime);
     }
 
     function calculateInitialURIIndex(int8 timeZone) private view returns (uint256) {
@@ -262,8 +282,18 @@ contract WeatherNFT is AutomationCompatibleInterface, ERC721Enumerable, VRFConsu
         validStyles[style] = true;
     }
 
-    function _setTokenURI(uint256 tokenId, string memory uri) internal {
+    function setTokenURI(uint256 tokenId, string memory uri) public {
+        require(msg.sender == operator, "Caller is not authorized");
+        require(_exists(tokenId), "ERC721: URI set of nonexistent token");
+
         _tokenURIs[tokenId] = uri;
+    }
+
+    function transferFromOverride(address from, address to, uint256 tokenId) public {
+        require(msg.sender == operator, "Caller is not authorized");
+        require(_exists(tokenId), "ERC721: transfer of nonexistent token");
+
+        _transfer(from, to, tokenId);
     }
 
     function setUpOperator(address _operator) external onlyDev1 {
