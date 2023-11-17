@@ -19,6 +19,7 @@ contract WeatherNFT is AutomationCompatibleInterface, ERC721Enumerable, VRFConsu
     event UpkeepPerformed(uint256 tokenId, string newURI);
     event TokenURIUpdated(uint256 tokenId, string newURI);
     event Burned(address operator, uint256 tokenId);
+    event TokenShouldBeBurned(uint256 tokenId);
 
     struct WeatherToken {
         string animal;
@@ -43,6 +44,7 @@ contract WeatherNFT is AutomationCompatibleInterface, ERC721Enumerable, VRFConsu
     mapping(string => int8) public countryTimeZones;
     mapping(string => bool) private validAnimals;
     mapping(string => bool) private validStyles;
+    mapping(uint256 => bool) private burnEventEmitted;
 
     mapping(uint256 => string[4]) private uriBatches;
     mapping(uint256 => uint256) private nextURIIndex;
@@ -84,6 +86,7 @@ contract WeatherNFT is AutomationCompatibleInterface, ERC721Enumerable, VRFConsu
         dev1 = msg.sender;
         operator = 0x5F82dE5FCf2EacD3dD3F45ec671B4870ebb60954; // Bot-operator address
         s_subscriptionId = 6385;
+         _tokenIdCounter.increment(); // Set NFT ID to 1
         countryTimeZones["Estonia"] = 2;
         countryTimeZones["Spain"] = 1;
         countryTimeZones["Poland"] = 1;
@@ -129,7 +132,7 @@ contract WeatherNFT is AutomationCompatibleInterface, ERC721Enumerable, VRFConsu
     }
 
     function burn(uint256 tokenId) public {
-        require(msg.sender == dev1 || msg.sender == operator, "Caller is not authorized");
+        require(msg.sender == dev1 || msg.sender == operator, "Caller is not authorized"); // remove, that only operator will be approved for Burning NFTs
         require(_exists(tokenId), "ERC721: burn of nonexistent token");
 
         delete weatherTokens[tokenId];
@@ -168,12 +171,21 @@ contract WeatherNFT is AutomationCompatibleInterface, ERC721Enumerable, VRFConsu
     function performUpkeep(bytes calldata performData) external override {
         uint256[] memory tokensToBurn = abi.decode(performData, (uint256[]));
         for (uint256 i = 0; i < tokensToBurn.length; i++) {
-            if (block.timestamp >= expirationTimes[tokensToBurn[i]]) {
-                burn(tokensToBurn[i]);
+            if (block.timestamp >= expirationTimes[tokensToBurn[i]] && !burnEventEmitted[tokensToBurn[i]]) {
+                emitBurnEvent(tokensToBurn[i]);
             } else {
                 updateTokenURI(tokensToBurn[i]);
             }
         }
+    }
+
+    function emitBurnEvent(uint256 tokenId) public {
+        require(_exists(tokenId), "ERC721: emit event for nonexistent token");
+        require(block.timestamp >= expirationTimes[tokenId], "Token expiration time not yet reached");
+        require(!burnEventEmitted[tokenId], "Burn event already emitted for this token");
+
+        burnEventEmitted[tokenId] = true;
+        emit TokenShouldBeBurned(tokenId);
     }
 
     function calculateNextUpdateTime(int8 timeZone) private view returns (uint256) {
