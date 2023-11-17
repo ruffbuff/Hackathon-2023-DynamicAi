@@ -3,7 +3,11 @@ import { ConnectWallet } from "@thirdweb-dev/react";
 import 'bootstrap/dist/css/bootstrap.min.css';
 import './SideNavBar.css';
 
-function SideNavBar() {
+interface SideNavBarProps {
+  onWalletConnect: (connected: boolean) => void;
+}
+
+function SideNavBar({ onWalletConnect }: SideNavBarProps) {
   return (
     <>
     <div className="side-nav-bar">
