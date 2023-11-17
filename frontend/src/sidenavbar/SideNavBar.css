@@ -1,32 +1,28 @@
-/* frontend/components/SideNavBar.css */
 .side-nav-bar {
-  width: 320px;
+  width: 360px;
   height: 100vh;
   position: fixed;
-  left: -280px;
+  left: -360px;
   transition: left 0.3s;
   z-index: 1000;
   background-color: #343a40;
   padding: 1rem;
 }
 
-.side-nav-bar.visible {
-  left: 0; /* Show sidebar when visible */
-}
-
-.trigger {
-  width: 40px;
-  height: 100%;
-  position: absolute;
-  left: 280px;
-  top: 0;
-  z-index: 1002;
-  opacity: 0.7;
-  background-color: #6c757d;
+.open-sidebar-btn {
+  position: fixed;
+  left: 10px;
+  top: 10px;
+  z-index: 1003;
   cursor: pointer;
-  box-shadow: 0 0 10px rgba(0, 0, 0, 0.5);
+  padding: 5px 10px;
+  background-color: #6c757d;
+  color: white;
+  border: none;
+  border-radius: 5px;
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
 }
 
-.side-nav-bar:hover {
+.side-nav-bar.visible {
   left: 0;
 }
