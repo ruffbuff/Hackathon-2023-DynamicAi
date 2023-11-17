@@ -1,0 +1,26 @@
+/* frontend/src/header/Header.css */
+.header-container {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    height: 100vh;
+  }
+  
+  .content-box {
+    background-color: #343a40;
+    padding: 20px;
+    border-radius: 15px;
+    box-shadow: 0 4px 8px #343a40;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+  }
+  
+  .image-box {
+    margin-bottom: 15px;
+  }
+  
+  .info-box, .additional-info-box {
+    margin-bottom: 10px;
+  }
+  

@@ -1,25 +1,29 @@
-import React from 'react';
-import logo from './logo.svg';
-import './App.css';
+// frontend/src/App.tsx
+import SideNavBar from './sidenavbar/SideNavBar';
+import Header from './header/Header';
+import {
+  ThirdwebProvider,
+  metamaskWallet,
+  walletConnect,
+  trustWallet,
+  rainbowWallet,
+} from "@thirdweb-dev/react";
 
 function App() {
   return (
-    <div className="App">
-      <header className="App-header">
-        <img src={logo} className="App-logo" alt="logo" />
-        <p>
-          Edit <code>src/App.tsx</code> and save to reload.
-        </p>
-        <a
-          className="App-link"
-          href="https://reactjs.org"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          Learn React
-        </a>
-      </header>
-    </div>
+    <ThirdwebProvider
+    activeChain="mumbai"
+    clientId="cb0bcf9cb91ad584a61a6c9d1210fb17"
+    supportedWallets={[
+      metamaskWallet({ recommended: true }),
+      walletConnect(),
+      trustWallet(),
+      rainbowWallet(),
+    ]}
+  >
+      <SideNavBar />
+      <Header />
+    </ThirdwebProvider>
   );
 }
 
