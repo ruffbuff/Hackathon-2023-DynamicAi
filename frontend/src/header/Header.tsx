@@ -1,23 +1,83 @@
 // frontend/src/header/Header.tsx
 import React, { useState } from 'react';
-import {
-  Box,
-  Image,
-  Text,
-  VStack,
-  Heading,
-} from '@chakra-ui/react';
+import { Box, VStack, Flex, Select, Button, Input } from '@chakra-ui/react';
+import { ethers } from 'ethers';
+import { contracts } from '../sol/contracts';
+import './Header.css';
 
 function Header() {
+  const [animal, setAnimal] = useState('');
+  const [name, setName] = useState('');
+  const [country, setCountry] = useState('');
+  const [style, setStyle] = useState('');
+
+  const contractABI = contracts.weatherContract.abi;
+
+  const mintNFT = async () => {
+    try {
+      const provider = new ethers.providers.Web3Provider(window.ethereum);
+      const signer = provider.getSigner();
+      const contract = new ethers.Contract(contracts.weatherContract.address, contractABI, signer);
+
+      const transaction = await contract.mint(animal, name, country, style);
+      await transaction.wait();
+
+      console.log("NFT minted successfully");
+    } catch (error) {
+      console.error("Minting error: ", error);
+    }
+  };
 
   return (
-    <Box className="header-container">
-      <VStack spacing={4} align="stretch" className="content-box">
-        <Box className="info-box">
-          <Heading as="h2" size="xl">Header</Heading>
+  <Flex
+    className="header-container"
+    justifyContent="center"
+    alignItems="center"
+    height="100vh"
+  >
+    <VStack
+      spacing={4}
+      align="stretch"
+      className="content-box"
+      width="full"
+      maxWidth="md"
+      m="auto"
+    >
+      <Box className="info-box" p={6} boxShadow="xl" rounded="lg" bg="gray.50">
+          <Select placeholder="Select Animal" className="select-input" value={animal} onChange={(e) => setAnimal(e.target.value)}>
+            <option value="Cat">Cat</option>
+            <option value="Dog">Dog</option>
+            <option value="Horse">Horse</option>
+            <option value="Fox">Fox</option>
+            <option value="Turtle">Turtle</option>
+          </Select>
+          <Select placeholder="Select Country" className="select-input" value={country} onChange={(e) => setCountry(e.target.value)}>
+            <option value="Estonia">Estonia</option>
+            <option value="Spain">Spain</option>
+            <option value="Poland">Poland</option>
+            <option value="USA">USA</option>
+            <option value="Japan">Japan</option>
+          </Select>
+          <Select placeholder="Select Style" className="select-input" value={style} onChange={(e) => setStyle(e.target.value)}>
+            <option value="Cartoon">Cartoon</option>
+            <option value="Free">Free</option>
+            <option value="Minecraft">Minecraft</option>
+            <option value="Retro">Retro</option>
+            <option value="Cyberpunk">Cyberpunk</option>
+          </Select>
+          <Input
+            className="input-input"
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            placeholder="Name"
+            mb={3}
+          />
+          <button onClick={mintNFT} className="mint-btn">
+            FREE WEATHER AI DYNAMY NFT MINT!
+          </button>
         </Box>
       </VStack>
-    </Box>
+    </Flex>
   );
 }
 
