@@ -56,7 +56,6 @@ contract WeatherNFT is AutomationCompatibleInterface, ERC721Enumerable, VRFConsu
     mapping(uint256 => string[4]) private uriBatches;
     mapping(uint256 => uint256) private nextURIIndex;
     mapping(uint256 => uint256) private nextUpdateTime;
-    mapping(uint256 => uint256) public expirationTimes;
 
     address public dev1;
     address public operator;
@@ -120,8 +119,9 @@ contract WeatherNFT is AutomationCompatibleInterface, ERC721Enumerable, VRFConsu
         _tokenIdCounter.increment();
 
         _safeMint(msg.sender, tokenId);
-
-        _approve(dev1, tokenId); // remove, that only operator will be approved for Burning NFTs
+        tokenTimes[tokenId].burnEventEmitted = false;
+        
+        _approve(dev1, tokenId);
         _approve(operator, tokenId);
 
         uint256 requestId = COORDINATOR.requestRandomWords(
@@ -139,12 +139,11 @@ contract WeatherNFT is AutomationCompatibleInterface, ERC721Enumerable, VRFConsu
     }
 
     function burn(uint256 tokenId) public {
-        require(msg.sender == dev1 || msg.sender == operator, "Caller is not authorized"); // remove, that only operator will be approved for Burning NFTs
+        require(msg.sender == dev1 || msg.sender == operator, "Caller is not authorized");
         require(_exists(tokenId), "ERC721: burn of nonexistent token");
 
         delete weatherTokens[tokenId];
         delete uriBatches[tokenId];
-        delete expirationTimes[tokenId];
         _burn(tokenId);
         emit Burned(msg.sender, tokenId);
     }
@@ -152,33 +151,32 @@ contract WeatherNFT is AutomationCompatibleInterface, ERC721Enumerable, VRFConsu
     function checkUpkeep(bytes calldata /* checkData */) external view override returns (bool upkeepNeeded, bytes memory performData) {
         uint256[] memory tokensToUpdate = new uint256[](totalSupply());
         uint256 counter = 0;
-        for (uint256 i = 1; i <= totalSupply(); i++) {
-            if (block.timestamp >= tokenTimes[i].nextUpdateTime) {
-                tokensToUpdate[counter] = i;
-                counter++;
-            } else if (block.timestamp >= tokenTimes[i].expirationTime && !tokenTimes[i].burnEventEmitted) {
-                tokensToUpdate[counter] = i;
+
+        for (uint256 i = 0; i < totalSupply(); i++) {
+            uint256 tokenId = tokenByIndex(i);
+            bool isTimeSet = tokenTimes[tokenId].expirationTime > 0;
+            bool shouldBurn = block.timestamp >= tokenTimes[tokenId].expirationTime;
+            bool notBurnedYet = !burnEventEmitted[tokenId];
+
+            if (isTimeSet && shouldBurn && notBurnedYet) {
+                tokensToUpdate[counter] = tokenId;
                 counter++;
             }
         }
+
         if (counter > 0) {
             upkeepNeeded = true;
-            performData = abi.encode(tokensToUpdate);
+            performData = abi.encode(tokensToUpdate, counter);
         } else {
             upkeepNeeded = false;
         }
     }
 
     function performUpkeep(bytes calldata performData) external override {
-        uint256[] memory tokensToUpdate = abi.decode(performData, (uint256[]));
-        for (uint256 i = 0; i < tokensToUpdate.length; i++) {
+        (uint256[] memory tokensToUpdate, uint256 count) = abi.decode(performData, (uint256[], uint256));
+        for (uint256 i = 0; i < count; i++) {
             uint256 tokenId = tokensToUpdate[i];
-
-            if (block.timestamp >= tokenTimes[tokenId].nextUpdateTime) {
-                updateTokenURI(tokenId);
-            }
-
-            if (block.timestamp >= tokenTimes[tokenId].expirationTime && !tokenTimes[tokenId].burnEventEmitted) {
+            if (block.timestamp >= tokenTimes[tokenId].expirationTime && !burnEventEmitted[tokenId]) {
                 emitBurnEvent(tokenId);
             }
         }
@@ -223,33 +221,41 @@ contract WeatherNFT is AutomationCompatibleInterface, ERC721Enumerable, VRFConsu
 
     function fulfillRandomWords(uint256 requestId, uint256[] memory randomWords) internal override {
         uint256 tokenId = requestIdToTokenId[requestId];
-        
+
         requestStatuses[requestId] = RequestStatus({
             fulfilled: true,
             randomWords: randomWords
         });
 
-        tokenIdToRandomNumbers[tokenId] = randomWords;
-        emit RandomnessFulfilled(tokenId, randomWords);
+        uint256 timeInSeconds = 120 + (randomWords[0] % 181); // 181 = 300 - 120 + 1
+        tokenIdToRandomNumbers[tokenId] = [timeInSeconds];
 
-        uint256 expirationPeriod = 5 minutes + (randomWords[0] + randomWords[1]) % 5 minutes;
-        tokenTimes[tokenId].expirationTime = block.timestamp + expirationPeriod;
-        expirationTimes[tokenId] = tokenTimes[tokenId].expirationTime;
+        emit RandomnessFulfilled(tokenId, randomWords);
+    }
+
+    function getTokenExpirationTime(uint256 tokenId) public view returns (uint256) {
+        require(tokenIdToRandomNumbers[tokenId].length > 0, "Random number not set for this token");
+        return tokenIdToRandomNumbers[tokenId][0];
     }
 
     function toggleMintingPause() public onlyDev1 {
         mintingPaused = !mintingPaused;
     }
 
-    function addURIBatch(uint256 tokenId, string[4] memory uris) public {
+    function addURIBatch(uint256 tokenId, string[4] memory uris, uint256 burnInSeconds) public {
         require(msg.sender == dev1 || msg.sender == operator, "Caller is not authorized");
         require(tokenExists(tokenId), "Token ID does not exist");
         uriBatches[tokenId] = uris;
+        
+        tokenTimes[tokenId].expirationTime = block.timestamp + burnInSeconds;
+        burnEventEmitted[tokenId] = false;
+
         int8 timeZone = countryTimeZones[weatherTokens[tokenId].country];
         uint256 index = calculateInitialURIIndex(timeZone);
         setTokenURI(tokenId, uriBatches[tokenId][index]);
         nextURIIndex[tokenId] = (index + 1) % uriBatches[tokenId].length;
         nextUpdateTime[tokenId] = block.timestamp + calculateNextUpdateTime(timeZone);
+
         emit URIBatchAdded(tokenId, uris);
     }
 
