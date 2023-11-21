@@ -1,11 +1,14 @@
 // frontend/src/header/Header.tsx
 import React, { useState } from 'react';
-import { Box, VStack, Flex, Select, Button, Input } from '@chakra-ui/react';
+import { Box, VStack, Flex, Select, Button, Input, useToast, Text } from '@chakra-ui/react';
 import { ethers } from 'ethers';
 import { contracts } from '../sol/contracts';
+import { useConnectionStatus } from "@thirdweb-dev/react";
 import './Header.css';
 
 function Header() {
+  const connectionStatus = useConnectionStatus();
+  const toast = useToast();
   const [animal, setAnimal] = useState('');
   const [name, setName] = useState('');
   const [country, setCountry] = useState('');
@@ -18,67 +21,124 @@ function Header() {
       const provider = new ethers.providers.Web3Provider(window.ethereum);
       const signer = provider.getSigner();
       const contract = new ethers.Contract(contracts.weatherContract.address, contractABI, signer);
-
+  
       const transaction = await contract.mint(animal, name, country, style);
       await transaction.wait();
-
-      console.log("NFT minted successfully");
+  
+      toast({
+        title: "NFT Minted",
+        description: "Your NFT has been minted successfully!",
+        status: "success",
+        duration: 5000,
+        isClosable: true,
+      });
     } catch (error) {
-      console.error("Minting error: ", error);
+      if (error instanceof Error) {
+        toast({
+          title: "Minting Failed",
+          description: `Error occurred: ${error.message}`,
+          status: "error",
+          duration: 5000,
+          isClosable: true,
+        });
+      } else {
+        toast({
+          title: "Minting Failed",
+          description: "An unknown error occurred.",
+          status: "error",
+          duration: 5000,
+          isClosable: true,
+        });
+      }
     }
   };
 
-  return (
-  <Flex
-    className="header-container"
-    justifyContent="center"
-    alignItems="center"
-    height="100vh"
-  >
-    <VStack
-      spacing={4}
-      align="stretch"
-      className="content-box"
-      width="full"
-      maxWidth="md"
-      m="auto"
-    >
-      <Box className="info-box" p={6} boxShadow="xl" rounded="lg" bg="gray.50">
-          <Select placeholder="Select Animal" className="select-input" value={animal} onChange={(e) => setAnimal(e.target.value)}>
-            <option value="Cat">Cat</option>
-            <option value="Dog">Dog</option>
-            <option value="Horse">Horse</option>
-            <option value="Fox">Fox</option>
-            <option value="Turtle">Turtle</option>
-          </Select>
-          <Select placeholder="Select Country" className="select-input" value={country} onChange={(e) => setCountry(e.target.value)}>
-            <option value="Estonia">Estonia</option>
-            <option value="Spain">Spain</option>
-            <option value="Poland">Poland</option>
-            <option value="USA">USA</option>
-            <option value="Japan">Japan</option>
-          </Select>
-          <Select placeholder="Select Style" className="select-input" value={style} onChange={(e) => setStyle(e.target.value)}>
-            <option value="Cartoon">Cartoon</option>
-            <option value="Free">Free</option>
-            <option value="Minecraft">Minecraft</option>
-            <option value="Retro">Retro</option>
-            <option value="Cyberpunk">Cyberpunk</option>
-          </Select>
-          <Input
-            className="input-input"
-            value={name}
-            onChange={(e) => setName(e.target.value)}
-            placeholder="Name"
-            mb={3}
-          />
-          <button onClick={mintNFT} className="mint-btn">
-            FREE WEATHER AI DYNAMY NFT MINT!
-          </button>
+  if (connectionStatus === "disconnected") {
+    return (
+      <Flex
+        className="header-container"
+        justifyContent="center"
+        alignItems="center"
+        height="100vh"
+      >
+        <Box className="info-box" p={6} boxShadow="xl" rounded="lg" bg="#BF40BF">
+          <Text textColor="white">Open sidebar and Connect Wallet</Text>
         </Box>
-      </VStack>
-    </Flex>
-  );
+      </Flex>
+    );
+  }
+
+  if (connectionStatus === "connecting") {
+    return (
+      <Flex className="header-container" justifyContent="center" alignItems="center" height="100vh">
+        <Box className="info-box" p={6} boxShadow="xl" rounded="lg" bg="gray.50">
+          <p>Connecting to wallet...</p>
+        </Box>
+      </Flex>
+    );
+  }
+
+  if (connectionStatus === "unknown") {
+    return (
+      <Flex className="header-container" justifyContent="center" alignItems="center" height="100vh">
+        <Box className="info-box" p={6} boxShadow="xl" rounded="lg" bg="gray.50">
+          <p>Loading wallet status...</p>
+        </Box>
+      </Flex>
+    );
+  }
+
+  return (
+    <Flex
+      className="header-container"
+      justifyContent="center"
+      alignItems="center"
+      height="100vh"
+    >
+      <VStack
+        spacing={4}
+        align="stretch"
+        className="content-box"
+        width="full"
+        maxWidth="md"
+        m="auto"
+      >
+        <Box className="info-box" p={6} boxShadow="xl" rounded="lg" bg="gray.50">
+            <Select placeholder="Select Animal" className="select-input" value={animal} onChange={(e) => setAnimal(e.target.value)}>
+              <option value="Cat">Cat</option>
+              <option value="Dog">Dog</option>
+              <option value="Horse">Horse</option>
+              <option value="Fox">Fox</option>
+              <option value="Turtle">Turtle</option>
+            </Select>
+            <Select placeholder="Select Country" className="select-input" value={country} onChange={(e) => setCountry(e.target.value)}>
+              <option value="Estonia">Estonia</option>
+              <option value="Spain">Spain</option>
+              <option value="Poland">Poland</option>
+              <option value="USA">USA</option>
+              <option value="Japan">Japan</option>
+            </Select>
+            <Select placeholder="Select Style" className="select-input" value={style} onChange={(e) => setStyle(e.target.value)}>
+              <option value="Cartoon">Cartoon</option>
+              <option value="Free">Free</option>
+              <option value="Minecraft">Minecraft</option>
+              <option value="Retro">Retro</option>
+              <option value="Cyberpunk">Cyberpunk</option>
+            </Select>
+            <Input
+              className="input-input"
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              placeholder="Name"
+              mb={3}
+            />
+            <button onClick={mintNFT} className="mint-btn">
+              FREE WEATHER AI DYNAMY NFT MINT!
+            </button>
+          </Box>
+        </VStack>
+      </Flex>
+    );
 }
 
 export default Header;

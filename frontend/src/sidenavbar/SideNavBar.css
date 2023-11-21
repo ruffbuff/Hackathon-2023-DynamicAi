@@ -26,3 +26,25 @@
 .side-nav-bar.visible {
   left: 0;
 }
+
+.sidebar-link {
+  display: flex;
+  align-items: center;
+  color: white;
+  padding: 10px 15px;
+  margin: 10px 0;
+  text-decoration: none;
+  border-radius: 4px;
+  transition: background-color 0.2s, color 0.2s;
+}
+
+.sidebar-link:hover {
+  background-color: #495057; /* Darker background on hover */
+  color: #f8f9fa; /* Lighter text on hover */
+}
+
+.sidebar-icon {
+  margin-right: 10px; /* Adjust the spacing as needed */
+  font-size: 20px; /* Adjust icon size as needed */
+}
+
