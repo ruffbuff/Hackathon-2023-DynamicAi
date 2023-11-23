@@ -21,7 +21,7 @@ function AppContent() {
       <SideNavBar />
       {showHeader && <Header />}
       <Routes>
-        <Route path="/" element={<div>Main Content Here</div>} />
+        <Route path="/" element={<div></div>} />
         <Route path="/inventory" element={<Inventory />} />
         <Route path="/collection" element={<Collection />} />
       </Routes>

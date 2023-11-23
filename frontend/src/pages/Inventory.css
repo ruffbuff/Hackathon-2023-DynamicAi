@@ -52,7 +52,7 @@
 .nft-slot {
   border: 1px solid #ddd;
   border-radius: 10px;
-  background-color: rgb(163, 46, 46);
+  background-color: rgb(255, 255, 255);
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.15);
 }
 
@@ -64,4 +64,54 @@
 .larger-image {
   max-width: 300px;
   height: auto;
+}
+
+@media (max-width: 600px) {
+  .main-container {
+    max-width: 95%;
+    padding: 10px;
+  }
+
+  .image-and-text-container {
+    width: 95
+  }
+
+  .image-box, .text-box {
+    width: 100%;
+    padding: 5px;
+  }
+
+  .nft-gallery-container {
+    width: 95%;
+  }
+
+  .thumbnail-image {
+    max-width: 80px; 
+  }
+
+  .larger-image {
+    max-width: 250px;
+  }
+
+  .nft-slot {
+    width: 90px;
+    height: auto;
+    padding: 5px;
+  }
+}
+
+@media (max-width: 400px) {
+  .thumbnail-image {
+    max-width: 60px;
+  }
+
+  .larger-image {
+    max-width: 200px;
+  }
+
+  .nft-slot {
+    width: 100%;
+    height: auto;
+    padding: 5px;
+  }
 }

@@ -3,6 +3,7 @@ import React, { useState, useEffect } from 'react';
 import './Collection.css';
 
 interface NFT {
+  name: string;
   image: {
     cachedUrl: string;
   };
@@ -19,6 +20,7 @@ function Collection() {
       });
       const data = await response.json();
       const fetchedNfts = data.nfts.map((nft: any) => ({
+        name: nft.name,
         image: nft.image
       }));
       setNfts(fetchedNfts);
@@ -32,6 +34,7 @@ function Collection() {
       {nfts.map((nft, index) => (
         <div key={index} className="nft-card">
           <img src={nft.image.cachedUrl} alt={`NFT ${index}`} />
+          <div className="nft-name">{nft.name}</div>
         </div>
       ))}
     </div>
