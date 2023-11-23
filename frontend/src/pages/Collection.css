@@ -1,0 +1,21 @@
+/* frontend/src/pages/Collection.css */
+.collection-container {
+display: flex;
+flex-wrap: wrap;
+justify-content: center;
+gap: 20px;
+padding: 20px;
+}
+
+.nft-card {
+width: 200px;
+border: 1px solid #ddd;
+border-radius: 10px;
+overflow: hidden;
+box-shadow: 0 2px 4px rgba(0, 0, 0, 0.15);
+}
+
+.nft-card img {
+width: 100%;
+height: auto;
+}
