@@ -37,7 +37,7 @@ function Inventory() {
     if (address) {
       const fetchNFTs = async () => {
         const options = { method: 'GET', headers: { accept: 'application/json' } };
-        const url = `https://polygon-mumbai.g.alchemy.com/nft/v3/DquPqd0BkVZtmd5HQkefL0hbs_SLMLfX/getNFTsForOwner?owner=${address}&contractAddresses[]=0xc91FE89200D73685Dc7d388EBd5a266C74e9b7b3&withMetadata=true&pageSize=100`;
+        const url = `https://polygon-mumbai.g.alchemy.com/nft/v3/DquPqd0BkVZtmd5HQkefL0hbs_SLMLfX/getNFTsForOwner?owner=${address}&contractAddresses[]=0x278d618fF458Ec8896155f8DFc3166703A41F289&withMetadata=true&pageSize=100`;
   
         try {
           const response = await fetch(url, options);
@@ -67,25 +67,25 @@ function Inventory() {
   };
 
   return (
-    <Box className="inventory-container">
-      <Box className="selected-nft">
+    <Box className="main-container">
+      <Box className="image-and-text-container">
         {selectedNft ? (
           <>
-            <Image
-              src={selectedNft.image.cachedUrl}
-              alt={selectedNft.name}
-              className={imageClicked ? "larger-image" : "thumbnail-image"}
-            />
-            <Box className="nft-metadata">
+            <Box className="image-box">
+              <Image
+                src={selectedNft.image.cachedUrl}
+                alt={selectedNft.name}
+                className={imageClicked ? "larger-image" : "thumbnail-image"}
+              />
+            </Box>
+            <Box className="text-box">
               <Text fontSize="2xl">{selectedNft.name}</Text>
               <Text>{selectedNft.description}</Text>
-
               {selectedNft.attributes.find(attr => attr.trait_type === "Deadline") && (
                 <Text color="red.500">
                   Deadline: {selectedNft.attributes.find(attr => attr.trait_type === "Deadline")?.value}
                 </Text>
               )}
-
               <Table variant="simple">
                 <Thead>
                   <Tr>
@@ -109,16 +109,18 @@ function Inventory() {
         )}
       </Box>
 
-      <Box className="nft-gallery">
-        {nfts.map((nft, index) => (
-          <Box key={index} onClick={() => handleNftClick(nft)} cursor="pointer">
-            <Image
-              src={nft.image.cachedUrl}
-              alt={`NFT ${index}`}
-              className="thumbnail-image"
-            />
-          </Box>
-        ))}
+      <Box className="nft-gallery-container">
+        <Box className="nft-gallery">
+          {nfts.map((nft, index) => (
+            <Box key={index} onClick={() => handleNftClick(nft)} cursor="pointer" className="nft-slot">
+              <Image
+                src={nft.image.cachedUrl}
+                alt={`NFT ${index}`}
+                className="thumbnail-image"
+              />
+            </Box>
+          ))}
+        </Box>
       </Box>
     </Box>
   );
