@@ -1,50 +1,91 @@
 .side-nav-bar {
-  width: 360px;
-  height: 100vh;
-  position: fixed;
-  left: -360px;
-  transition: left 0.3s;
-  z-index: 1000;
-  background-color: #343a40;
-  padding: 1rem;
+width: 360px;
+height: 100vh;
+position: fixed;
+left: -360px;
+transition: left 0.3s;
+z-index: 1000;
+background-color: #343a40;
+padding: 1rem;
 }
 
 .open-sidebar-btn {
-  position: fixed;
-  left: 10px;
-  top: 10px;
-  z-index: 1003;
-  cursor: pointer;
-  padding: 5px 10px;
-  background-color: #6c757d;
-  color: white;
-  border: none;
-  border-radius: 5px;
-  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
+position: fixed;
+left: 10px;
+top: 10px;
+z-index: 1003;
+cursor: pointer;
+padding: 5px 10px;
+background-color: #6c757d;
+color: white;
+border: none;
+border-radius: 5px;
+box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
 }
 
 .side-nav-bar.visible {
-  left: 0;
+left: 0;
 }
 
 .sidebar-link {
-  display: flex;
-  align-items: center;
-  color: white;
-  padding: 10px 15px;
-  margin: 10px 0;
-  text-decoration: none;
-  border-radius: 4px;
-  transition: background-color 0.2s, color 0.2s;
+display: flex;
+align-items: center;
+color: white;
+padding: 10px 15px;
+margin: 10px 0;
+text-decoration: none;
+border-radius: 4px;
+transition: background-color 0.2s, color 0.2s;
 }
 
 .sidebar-link:hover {
-  background-color: #495057; /* Darker background on hover */
-  color: #f8f9fa; /* Lighter text on hover */
+background-color: #495057;
+color: #f8f9fa;
+}
+
+.sidebar-wallet-link {
+display: flex;
+align-items: center;
+padding: 10px 15px;
+color: white;
+text-decoration: none;
+border-radius: 4px;
+transition: background-color 0.2s, color 0.2s;
+cursor: pointer;
+}
+
+.sidebar-wallet-link.disconnected {
+background-color: darkred;
+}
+
+.sidebar-wallet-link:hover {
+background-color: #495057;
 }
 
 .sidebar-icon {
-  margin-right: 10px; /* Adjust the spacing as needed */
-  font-size: 20px; /* Adjust icon size as needed */
+margin-right: 10px;
+font-size: 20px;
 }
 
+.custom-connect-button {
+  display: flex !important;
+  align-items: center !important;
+  color: rgb(0, 0, 0) !important;
+  padding: 10px 15px !important;
+  margin: 10px 0 !important;
+  text-decoration: none !important;
+  border-radius: 4px !important;
+  background-color: #343a40 !important;
+  cursor: pointer !important;
+  transition: background-color 0.2s, color 0.2s !important;
+  width: 100% !important;
+}
+
+.custom-connect-button:hover {
+  background-color: #495057 !important;
+}
+
+.custom-connect-button .sidebar-icon {
+  margin-right: 10px !important;
+  font-size: 20px !important;
+}
