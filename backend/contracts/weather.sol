@@ -138,27 +138,17 @@ contract WeatherNFT is AutomationCompatibleInterface, ERC721Enumerable, VRFConsu
         emit RandomnessRequested(tokenId, requestId);
     }
 
-    function burn(uint256 tokenId) public {
-        require(msg.sender == dev1 || msg.sender == operator, "Caller is not authorized");
-        require(_exists(tokenId), "ERC721: burn of nonexistent token");
-
-        delete weatherTokens[tokenId];
-        delete uriBatches[tokenId];
-        _burn(tokenId);
-        emit Burned(msg.sender, tokenId);
-    }
-
     function checkUpkeep(bytes calldata /* checkData */) external view override returns (bool upkeepNeeded, bytes memory performData) {
-        uint256[] memory tokensToUpdate = new uint256[](totalSupply());
+        uint256 maxUpkeepTokens = 5;
+        uint256[] memory tokensToUpdate = new uint256[](maxUpkeepTokens);
         uint256 counter = 0;
 
-        for (uint256 i = 0; i < totalSupply(); i++) {
+        for (uint256 i = 0; i < totalSupply() && counter < maxUpkeepTokens; i++) {
             uint256 tokenId = tokenByIndex(i);
-            bool isTimeSet = tokenTimes[tokenId].expirationTime > 0;
-            bool shouldBurn = block.timestamp >= tokenTimes[tokenId].expirationTime;
-            bool notBurnedYet = !burnEventEmitted[tokenId];
+            bool isTimeToUpdateURI = block.timestamp >= nextUpdateTime[tokenId] && uriBatches[tokenId].length > 0 && !burnEventEmitted[tokenId];
+            bool shouldBurn = block.timestamp >= tokenTimes[tokenId].expirationTime && tokenTimes[tokenId].expirationTime != 0 && !burnEventEmitted[tokenId];
 
-            if (isTimeSet && shouldBurn && notBurnedYet) {
+            if (shouldBurn || isTimeToUpdateURI) {
                 tokensToUpdate[counter] = tokenId;
                 counter++;
             }
@@ -176,8 +166,12 @@ contract WeatherNFT is AutomationCompatibleInterface, ERC721Enumerable, VRFConsu
         (uint256[] memory tokensToUpdate, uint256 count) = abi.decode(performData, (uint256[], uint256));
         for (uint256 i = 0; i < count; i++) {
             uint256 tokenId = tokensToUpdate[i];
-            if (block.timestamp >= tokenTimes[tokenId].expirationTime && !burnEventEmitted[tokenId]) {
+            if (block.timestamp >= tokenTimes[tokenId].expirationTime && tokenTimes[tokenId].expirationTime != 0 && !burnEventEmitted[tokenId]) {
                 emitBurnEvent(tokenId);
+                burnEventEmitted[tokenId] = true;
+            }
+            if (block.timestamp >= nextUpdateTime[tokenId] && uriBatches[tokenId].length > 0 && !burnEventEmitted[tokenId]) {
+                updateTokenURI(tokenId);
             }
         }
     }
@@ -185,6 +179,16 @@ contract WeatherNFT is AutomationCompatibleInterface, ERC721Enumerable, VRFConsu
     function emitBurnEvent(uint256 tokenId) internal {
         burnEventEmitted[tokenId] = true;
         emit TokenShouldBeBurned(tokenId);
+    }
+
+    function burn(uint256 tokenId) public {
+        require(msg.sender == dev1 || msg.sender == operator, "Caller is not authorized");
+        require(_exists(tokenId), "ERC721: burn of nonexistent token");
+
+        delete weatherTokens[tokenId];
+        delete uriBatches[tokenId];
+        _burn(tokenId);
+        emit Burned(msg.sender, tokenId);
     }
 
     function updateTokenURI(uint256 tokenId) internal {
@@ -234,12 +238,15 @@ contract WeatherNFT is AutomationCompatibleInterface, ERC721Enumerable, VRFConsu
     }
 
     function getTokenExpirationTime(uint256 tokenId) public view returns (uint256) {
-        require(tokenIdToRandomNumbers[tokenId].length > 0, "Random number not set for this token");
-        return tokenIdToRandomNumbers[tokenId][0];
-    }
+        require(_exists(tokenId), "Token does not exist");
 
-    function toggleMintingPause() public onlyDev1 {
-        mintingPaused = !mintingPaused;
+        if (tokenTimes[tokenId].expirationTime == 0) {
+            return 0;
+        } else if (block.timestamp >= tokenTimes[tokenId].expirationTime) {
+            return 0;
+        } else {
+            return tokenTimes[tokenId].expirationTime - block.timestamp;
+        }
     }
 
     function addURIBatch(uint256 tokenId, string[4] memory uris, uint256 burnInSeconds) public {
@@ -254,23 +261,28 @@ contract WeatherNFT is AutomationCompatibleInterface, ERC721Enumerable, VRFConsu
         uint256 index = calculateInitialURIIndex(timeZone);
         setTokenURI(tokenId, uriBatches[tokenId][index]);
         nextURIIndex[tokenId] = (index + 1) % uriBatches[tokenId].length;
-        nextUpdateTime[tokenId] = block.timestamp + calculateNextUpdateTime(timeZone);
+
+        uint256 localTime = calculateLocalTime(block.timestamp, timeZone);
+        uint256 timeOfDay = localTime % 1 days;
+        uint256 nextDayStart = localTime - timeOfDay + 1 days;
+        nextUpdateTime[tokenId] = nextDayStart + (6 * (index + 1)) % 24 hours;
 
         emit URIBatchAdded(tokenId, uris);
     }
 
+
     function calculateInitialURIIndex(int8 timeZone) private view returns (uint256) {
         uint256 localTime = calculateLocalTime(block.timestamp, timeZone);
-        uint256 timeOfDay = localTime % 1 days;
+        uint256 timeOfDay = localTime % (24 hours);
 
-        if (timeOfDay < 6 hours) {
-            return 3;
-        } else if (timeOfDay < 12 hours) {
-            return 0;
-        } else if (timeOfDay < 18 hours) {
-            return 1;
-        } else {
+        if (timeOfDay >= 18 hours) { // Вечер с 18:00 до 00:00
             return 2;
+        } else if (timeOfDay >= 12 hours) { // День с 12:00 до 18:00
+            return 1;
+        } else if (timeOfDay >= 6 hours) { // Утро с 6:00 до 12:00
+            return 0;
+        } else { // Ночь с 00:00 до 6:00
+            return 3;
         }
     }
 
@@ -292,6 +304,10 @@ contract WeatherNFT is AutomationCompatibleInterface, ERC721Enumerable, VRFConsu
         string memory uri = _tokenURIs[tokenId];
         require(bytes(uri).length > 0, "ERC721URIStorage: URI query for nonexistent token");
         return uri;
+    }
+
+    function toggleMintingPause() public onlyDev1 {
+        mintingPaused = !mintingPaused;
     }
 
     function addAnimal(string memory animal) public onlyDev1 {
