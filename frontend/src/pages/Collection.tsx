@@ -14,7 +14,7 @@ function Collection() {
 
   useEffect(() => {
     const fetchData = async () => {
-      const response = await fetch('https://polygon-mumbai.g.alchemy.com/nft/v3/DquPqd0BkVZtmd5HQkefL0hbs_SLMLfX/getNFTsForCollection?contractAddress=0x278d618fF458Ec8896155f8DFc3166703A41F289&withMetadata=true', {
+      const response = await fetch('https://polygon-mumbai.g.alchemy.com/nft/v3/DquPqd0BkVZtmd5HQkefL0hbs_SLMLfX/getNFTsForCollection?contractAddress=0x8B8Ace3E9E1B8a2a56eA3fEac4a0Cb11AF79E7Af&withMetadata=true', {
         method: 'GET',
         headers: { 'accept': 'application/json' }
       });
