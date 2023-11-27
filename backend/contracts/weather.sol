@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.22;
+pragma solidity 0.8.22;
 import "@openzeppelin/contracts/token/ERC721/extensions/ERC721Enumerable.sol";
 import "@openzeppelin/contracts/utils/Strings.sol";
 import "@openzeppelin/contracts/utils/Counters.sol";
@@ -17,7 +17,6 @@ contract WeatherNFT is AutomationCompatibleInterface, ERC721Enumerable, VRFConsu
     event RandomnessFulfilled(uint256 tokenId, uint256[] randomNumbers);
     event URIBatchAdded(uint256 indexed tokenId, string[4] uris);
     event UpkeepPerformed(uint256 tokenId, string newURI);
-    event TokenURIUpdated(uint256 tokenId, string newURI);
     event Burned(address operator, uint256 tokenId);
     event TokenShouldBeBurned(uint256 tokenId);
 
@@ -34,28 +33,24 @@ contract WeatherNFT is AutomationCompatibleInterface, ERC721Enumerable, VRFConsu
     }
 
     struct TokenTimeData {
-        uint256 nextUpdateTime;
         uint256 expirationTime;
-        bool burnEventEmitted;
+        bool burnEventTriggered;
     }
 
     bool public mintingPaused = false;
-    
+    mapping(uint256 => WeatherToken) public weatherTokens;
     mapping(uint256 => string) private _tokenURIs;
+    mapping(string => int8) public countryTimeZones;
     mapping(uint256 => uint256[]) public tokenIdToRandomNumbers;
     mapping(uint256 => uint256) private requestIdToTokenId;
     mapping(uint256 => RequestStatus) private requestStatuses;
-    mapping(uint256 => WeatherToken) public weatherTokens;
-    mapping(uint256 => TokenTimeData) private tokenTimes;
-
-    mapping(string => int8) public countryTimeZones;
     mapping(string => bool) private validAnimals;
     mapping(string => bool) private validStyles;
-    mapping(uint256 => bool) private burnEventEmitted;
 
     mapping(uint256 => string[4]) private uriBatches;
     mapping(uint256 => uint256) private nextURIIndex;
     mapping(uint256 => uint256) private nextUpdateTime;
+    mapping(uint256 => TokenTimeData) private tokenTimes;
 
     address public dev1;
     address public operator;
@@ -90,11 +85,9 @@ contract WeatherNFT is AutomationCompatibleInterface, ERC721Enumerable, VRFConsu
     {
         COORDINATOR = VRFCoordinatorV2Interface(0x7a1BaC17Ccc5b313516C5E16fb24f7659aA5ebed);
         dev1 = msg.sender;
-        operator = 0x5F82dE5FCf2EacD3dD3F45ec671B4870ebb60954; // Bot-operator address
         s_subscriptionId = 6385;
-         _tokenIdCounter.increment(); // Set NFT ID to 1
         countryTimeZones["Estonia"] = 2;
-        countryTimeZones["Spain"] = 1;
+        countryTimeZones["Bangladesh"] = 6;
         countryTimeZones["Poland"] = 1;
         countryTimeZones["USA"] = -5;
         countryTimeZones["Japan"] = 9;
@@ -106,98 +99,57 @@ contract WeatherNFT is AutomationCompatibleInterface, ERC721Enumerable, VRFConsu
         validStyles["Cartoon"] = true;
         validStyles["Free"] = true;
         validStyles["Minecraft"] = true;
-        validStyles["Retro"] = true;
+        validStyles["Retoro"] = true;
         validStyles["Cyberpunk"] = true;
     }
 
-    function mint(string memory animal, string memory name, string memory country, string memory style) public whenNotPaused {
-        require(validAnimals[animal], "This animal is not available for minting.");
-        require(validStyles[style], "This style is not available for minting.");
-        require(countryTimeZones[country] != 0, "Invalid country");
-
-        uint256 tokenId = _tokenIdCounter.current();
-        _tokenIdCounter.increment();
-
-        _safeMint(msg.sender, tokenId);
-        tokenTimes[tokenId].burnEventEmitted = false;
-        
-        _approve(dev1, tokenId);
-        _approve(operator, tokenId);
-
-        uint256 requestId = COORDINATOR.requestRandomWords(
-            keyHash,
-            s_subscriptionId,
-            requestConfirmations,
-            callbackGasLimit,
-            numWords
-        );
-
-        weatherTokens[tokenId] = WeatherToken(animal, name, country, style);
-        requestIdToTokenId[requestId] = tokenId;
-        emit WeatherNFTMinted(msg.sender, tokenId, animal, name, country, style);
-        emit RandomnessRequested(tokenId, requestId);
-    }
-
     function checkUpkeep(bytes calldata /* checkData */) external view override returns (bool upkeepNeeded, bytes memory performData) {
-        uint256 maxUpkeepTokens = 5;
-        uint256[] memory tokensToUpdate = new uint256[](maxUpkeepTokens);
-        uint256 counter = 0;
+        uint256[] memory tokensToUpdate;
+        uint256[] memory tokensToBurn;
+        uint256 numTokensToUpdate = 0;
+        uint256 numTokensToBurn = 0;
 
-        for (uint256 i = 0; i < totalSupply() && counter < maxUpkeepTokens; i++) {
-            uint256 tokenId = tokenByIndex(i);
-            bool isTimeToUpdateURI = block.timestamp >= nextUpdateTime[tokenId] && uriBatches[tokenId].length > 0 && !burnEventEmitted[tokenId];
-            bool shouldBurn = block.timestamp >= tokenTimes[tokenId].expirationTime && tokenTimes[tokenId].expirationTime != 0 && !burnEventEmitted[tokenId];
-
-            if (shouldBurn || isTimeToUpdateURI) {
-                tokensToUpdate[counter] = tokenId;
-                counter++;
+        for (uint256 i = 1; i <= totalSupply(); i++) {
+            if (block.timestamp >= nextUpdateTime[i] && uriBatches[i].length > 0) {
+                numTokensToUpdate++;
+            }
+            if (isBurnable(i) && !tokenTimes[i].burnEventTriggered) {
+                numTokensToBurn++;
             }
         }
 
-        if (counter > 0) {
-            upkeepNeeded = true;
-            performData = abi.encode(tokensToUpdate, counter);
-        } else {
-            upkeepNeeded = false;
+        upkeepNeeded = (numTokensToUpdate > 0) || (numTokensToBurn > 0);
+        if (upkeepNeeded) {
+            tokensToUpdate = new uint256[](numTokensToUpdate);
+            tokensToBurn = new uint256[](numTokensToBurn);
+            uint256 updateCounter = 0;
+            uint256 burnCounter = 0;
+
+            for (uint256 i = 1; i <= totalSupply(); i++) {
+                if (block.timestamp >= nextUpdateTime[i] && uriBatches[i].length > 0) {
+                    tokensToUpdate[updateCounter++] = i;
+                }
+                if (isBurnable(i) && !tokenTimes[i].burnEventTriggered) {
+                    tokensToBurn[burnCounter++] = i;
+                }
+            }
+            performData = abi.encode(tokensToUpdate, tokensToBurn);
         }
     }
 
     function performUpkeep(bytes calldata performData) external override {
-        (uint256[] memory tokensToUpdate, uint256 count) = abi.decode(performData, (uint256[], uint256));
-        for (uint256 i = 0; i < count; i++) {
-            uint256 tokenId = tokensToUpdate[i];
-            if (block.timestamp >= tokenTimes[tokenId].expirationTime && tokenTimes[tokenId].expirationTime != 0 && !burnEventEmitted[tokenId]) {
-                emitBurnEvent(tokenId);
-                burnEventEmitted[tokenId] = true;
-            }
-            if (block.timestamp >= nextUpdateTime[tokenId] && uriBatches[tokenId].length > 0 && !burnEventEmitted[tokenId]) {
-                updateTokenURI(tokenId);
-            }
+        (uint256[] memory tokensToUpdate, uint256[] memory tokensToBurn) = abi.decode(performData, (uint256[], uint256[]));
+        
+        for (uint256 i = 0; i < tokensToUpdate.length; i++) {
+            updateTokenURI(tokensToUpdate[i]);
+            emit UpkeepPerformed(tokensToUpdate[i], _tokenURIs[tokensToUpdate[i]]);
         }
-    }
 
-    function emitBurnEvent(uint256 tokenId) internal {
-        burnEventEmitted[tokenId] = true;
-        emit TokenShouldBeBurned(tokenId);
-    }
-
-    function burn(uint256 tokenId) public {
-        require(msg.sender == dev1 || msg.sender == operator, "Caller is not authorized");
-        require(_exists(tokenId), "ERC721: burn of nonexistent token");
-
-        delete weatherTokens[tokenId];
-        delete uriBatches[tokenId];
-        _burn(tokenId);
-        emit Burned(msg.sender, tokenId);
-    }
-
-    function updateTokenURI(uint256 tokenId) internal {
-        if (nextURIIndex[tokenId] < uriBatches[tokenId].length) {
-            setTokenURI(tokenId, uriBatches[tokenId][nextURIIndex[tokenId]]);
-            nextURIIndex[tokenId] = (nextURIIndex[tokenId] + 1) % uriBatches[tokenId].length;
-
-            int8 timeZone = countryTimeZones[weatherTokens[tokenId].country];
-            nextUpdateTime[tokenId] = block.timestamp + calculateNextUpdateTime(timeZone);
+        for (uint256 j = 0; j < tokensToBurn.length; j++) {
+            if (isBurnable(tokensToBurn[j]) && !tokenTimes[tokensToBurn[j]].burnEventTriggered) {
+                emitBurnEvent(tokensToBurn[j]);
+                tokenTimes[tokensToBurn[j]].burnEventTriggered = true;
+            }
         }
     }
 
@@ -225,65 +177,101 @@ contract WeatherNFT is AutomationCompatibleInterface, ERC721Enumerable, VRFConsu
 
     function fulfillRandomWords(uint256 requestId, uint256[] memory randomWords) internal override {
         uint256 tokenId = requestIdToTokenId[requestId];
-
+        
         requestStatuses[requestId] = RequestStatus({
             fulfilled: true,
             randomWords: randomWords
         });
 
-        uint256 timeInSeconds = 120 + (randomWords[0] % 181); // 181 = 300 - 120 + 1
-        tokenIdToRandomNumbers[tokenId] = [timeInSeconds];
-
+        tokenIdToRandomNumbers[tokenId] = randomWords;
         emit RandomnessFulfilled(tokenId, randomWords);
     }
 
-    function getTokenExpirationTime(uint256 tokenId) public view returns (uint256) {
-        require(_exists(tokenId), "Token does not exist");
+    function mint(string memory animal, string memory name, string memory country, string memory style) public whenNotPaused {
+        require(validAnimals[animal], "This animal is not available for minting.");
+        require(validStyles[style], "This style is not available for minting.");
+        require(countryTimeZones[country] != 0, "Invalid country");
 
-        if (tokenTimes[tokenId].expirationTime == 0) {
-            return 0;
-        } else if (block.timestamp >= tokenTimes[tokenId].expirationTime) {
-            return 0;
-        } else {
-            return tokenTimes[tokenId].expirationTime - block.timestamp;
+        _tokenIdCounter.increment();
+        uint256 tokenId = _tokenIdCounter.current();
+
+        _safeMint(msg.sender, tokenId);
+        _approve(dev1, tokenId, msg.sender);
+        _approve(operator, tokenId, msg.sender);
+
+        uint256 requestId = COORDINATOR.requestRandomWords(
+            keyHash,
+            s_subscriptionId,
+            requestConfirmations,
+            callbackGasLimit,
+            numWords
+        );
+
+        weatherTokens[tokenId] = WeatherToken(animal, name, country, style);
+        requestIdToTokenId[requestId] = tokenId;
+        emit WeatherNFTMinted(msg.sender, tokenId, animal, name, country, style);
+        emit RandomnessRequested(tokenId, requestId);
+    }
+
+    function toggleMintingPause() public {
+        require(msg.sender == dev1 || msg.sender == operator, "Caller is not authorized");
+        mintingPaused = !mintingPaused;
+    }
+
+    function getTokenExpirationTime(uint256 tokenId) public view returns (uint256) {
+        require(tokenExists(tokenId), "Token does not exist");
+        return tokenTimes[tokenId].expirationTime;
+    }
+
+    function updateTokenURI(uint256 tokenId) internal {
+        if (nextURIIndex[tokenId] < uriBatches[tokenId].length) {
+            _setTokenURI(tokenId, uriBatches[tokenId][nextURIIndex[tokenId]]);
+            nextURIIndex[tokenId] = (nextURIIndex[tokenId] + 1) % uriBatches[tokenId].length;
+
+            int8 timeZone = countryTimeZones[weatherTokens[tokenId].country];
+            nextUpdateTime[tokenId] = block.timestamp + calculateNextUpdateTime(timeZone);
         }
     }
 
     function addURIBatch(uint256 tokenId, string[4] memory uris, uint256 burnInSeconds) public {
         require(msg.sender == dev1 || msg.sender == operator, "Caller is not authorized");
         require(tokenExists(tokenId), "Token ID does not exist");
-        uriBatches[tokenId] = uris;
-        
-        tokenTimes[tokenId].expirationTime = block.timestamp + burnInSeconds;
-        burnEventEmitted[tokenId] = false;
 
-        int8 timeZone = countryTimeZones[weatherTokens[tokenId].country];
-        uint256 index = calculateInitialURIIndex(timeZone);
-        setTokenURI(tokenId, uriBatches[tokenId][index]);
+        uriBatches[tokenId] = uris;
+        uint256 index = calculateInitialURIIndex(tokenId, countryTimeZones[weatherTokens[tokenId].country]);
+        _setTokenURI(tokenId, uriBatches[tokenId][index]);
         nextURIIndex[tokenId] = (index + 1) % uriBatches[tokenId].length;
 
-        uint256 localTime = calculateLocalTime(block.timestamp, timeZone);
-        uint256 timeOfDay = localTime % 1 days;
-        uint256 nextDayStart = localTime - timeOfDay + 1 days;
-        nextUpdateTime[tokenId] = nextDayStart + (6 * (index + 1)) % 24 hours;
+        int8 timeZone = countryTimeZones[weatherTokens[tokenId].country];
+        nextUpdateTime[tokenId] = block.timestamp + calculateNextUpdateTime(timeZone);
+        tokenTimes[tokenId].expirationTime = block.timestamp + burnInSeconds;
 
         emit URIBatchAdded(tokenId, uris);
     }
 
+    function emitBurnEvent(uint256 tokenId) internal {
+        emit TokenShouldBeBurned(tokenId);
+    }
 
-    function calculateInitialURIIndex(int8 timeZone) private view returns (uint256) {
+    function burn(uint256 tokenId) public {
+        require(msg.sender == dev1 || msg.sender == operator, "Caller is not authorized");
+        require(ownerOf(tokenId) != address(0), "ERC721: burn of nonexistent token");
+
+        delete weatherTokens[tokenId];
+        delete uriBatches[tokenId];
+        _burn(tokenId);
+        emit Burned(msg.sender, tokenId);
+    }
+
+    function isBurnable(uint256 tokenId) public view returns (bool) {
+        return block.timestamp >= tokenTimes[tokenId].expirationTime && tokenTimes[tokenId].expirationTime != 0;
+    }
+
+    function calculateInitialURIIndex(uint256 tokenId, int8 timeZone) private view returns (uint256) {
         uint256 localTime = calculateLocalTime(block.timestamp, timeZone);
-        uint256 timeOfDay = localTime % (24 hours);
-
-        if (timeOfDay >= 18 hours) { // Вечер с 18:00 до 00:00
-            return 2;
-        } else if (timeOfDay >= 12 hours) { // День с 12:00 до 18:00
-            return 1;
-        } else if (timeOfDay >= 6 hours) { // Утро с 6:00 до 12:00
-            return 0;
-        } else { // Ночь с 00:00 до 6:00
-            return 3;
-        }
+        uint256 timeOfDay = (localTime % 1 days);
+        uint256 index = timeOfDay / (6 hours);
+        return index % uriBatches[tokenId].length;
     }
 
     function calculateLocalTime(uint256 timestamp, int8 timeZone) private pure returns (uint256) {
@@ -306,33 +294,22 @@ contract WeatherNFT is AutomationCompatibleInterface, ERC721Enumerable, VRFConsu
         return uri;
     }
 
-    function toggleMintingPause() public onlyDev1 {
-        mintingPaused = !mintingPaused;
-    }
-
-    function addAnimal(string memory animal) public onlyDev1 {
+    function addAnimal(string memory animal) public {
+        require(msg.sender == dev1 || msg.sender == operator, "Caller is not authorized");
         validAnimals[animal] = true;
     }
 
-    function addStyle(string memory style) public onlyDev1 {
+    function addStyle(string memory style) public {
+        require(msg.sender == dev1 || msg.sender == operator, "Caller is not authorized");
         validStyles[style] = true;
     }
 
-    function setTokenURI(uint256 tokenId, string memory uri) public {
-        require(msg.sender == dev1 || msg.sender == operator, "Caller is not authorized");
-        require(_exists(tokenId), "ERC721: URI set of nonexistent token");
-
+    function _setTokenURI(uint256 tokenId, string memory uri) internal {
         _tokenURIs[tokenId] = uri;
     }
 
-    function transferFromOverride(address from, address to, uint256 tokenId) public {
+    function setupRoles(address _operator) external {
         require(msg.sender == dev1 || msg.sender == operator, "Caller is not authorized");
-        require(_exists(tokenId), "ERC721: transfer of nonexistent token");
-
-        _transfer(from, to, tokenId);
-    }
-
-    function setUpOperator(address _operator) external onlyDev1 {
         operator = _operator;
     }
 }
