@@ -19,13 +19,13 @@ mkdir clone
 cd clone
 git clone https://github.com/RuffBuff/weather_test_DNFT-ERC-721.git
 cd weather_test_DNFT-ERC-721
-npm install
 ```
 
 ## To open frontend:
 
 ```bash
 cd frontend
+npm install
 npm start
 ```
 
@@ -33,6 +33,7 @@ npm start
 
 ```bash
 cd backend
+npm install
 npx hardhat compile
 npx hardhat test (not ready)
 npx hardhat run scripts/deploy.js --network "network-name-here"
