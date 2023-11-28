@@ -1,8 +1,13 @@
 /* Collection.css */
+body {
+  background-color: rgb(119, 119, 119);
+}
+
 .collection-container {
   display: flex;
   flex-wrap: wrap;
   justify-content: center;
+  background-color: rgb(119, 119, 119);
   gap: 20px;
   padding: 20px;
 }

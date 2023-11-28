@@ -1,34 +1,54 @@
 /* frontend/src/header/Header.css */
 .header-container {
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    height: 100vh;
-  }
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  height: 100vh;
+  background-color: rgb(119, 119, 119);
+}
 
+.info-box {
+  background-color: #ffffff;
+  box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+  border-radius: 12px;
+  padding: 30px;
+  max-width: 500px;
+  width: 100%;
+}
+
+.select-input, .input-input {
+  width: 100%;
+  margin-bottom: 20px;
+  padding: 15px;
+  border-radius: 8px;
+  border: 1px solid #d1d1d6;
+  background-color: #f8f8fa;
+}
+
+.mint-btn {
+  background-color: #05111d;
+  color: white;
+  border: none;
+  cursor: pointer;
+  padding: 15px;
+  border-radius: 8px;
+  transition: background-color 0.3s ease;
+  font-weight: bold;
+  display: block;
+  width: 50%;
+  margin: 20px auto;
+}
+
+.mint-btn:hover {
+  background-color: #0056b3;
+}
+
+@media (max-width: 768px) {
   .info-box {
-    background-color: #f0f0f0;
-    box-shadow: 0 4px 8px rgba(0,0,0,0.1);
-    border-radius: 8px;
     padding: 20px;
   }
-  
-  .select-input, .input-input, .mint-btn {
-    width: 100%;
-    margin-bottom: 15px;
-    padding: 10px;
-    border-radius: 4px;
-    border: 1px solid #ccc;
-  }
-  
+
   .mint-btn {
-    background-color: #4CAF50;
-    color: white;
-    border: none;
-    cursor: pointer;
-    transition: background-color 0.3s ease;
+    width: 80%;
   }
-  
-  .mint-btn:hover {
-    background-color: #45a049;
-  }
+}

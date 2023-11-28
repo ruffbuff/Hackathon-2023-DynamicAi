@@ -103,7 +103,7 @@ function Header() {
         maxWidth="md"
         m="auto"
       >
-        <Box className="info-box" p={6} boxShadow="xl" rounded="lg" bg="gray.50">
+        <Box className="info-box" p={6} boxShadow="xl" rounded="lg" bg="gray">
             <Select placeholder="Select Animal" className="select-input" value={animal} onChange={(e) => setAnimal(e.target.value)}>
               <option value="Cat">Cat</option>
               <option value="Dog">Dog</option>
@@ -133,7 +133,7 @@ function Header() {
               mb={3}
             />
             <button onClick={mintNFT} className="mint-btn">
-              FREE WEATHER AI DYNAMY NFT MINT!
+              Free mint
             </button>
           </Box>
         </VStack>
