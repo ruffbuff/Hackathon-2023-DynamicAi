@@ -1,6 +1,6 @@
 // frontend/src/header/Header.tsx
 import React, { useState } from 'react';
-import { Box, VStack, Flex, Select, Button, Input, useToast, Text } from '@chakra-ui/react';
+import { Box, VStack, Flex, Select, Input, useToast, Text } from '@chakra-ui/react';
 import { ethers } from 'ethers';
 import { contracts } from '../sol/contracts';
 import { useConnectionStatus } from "@thirdweb-dev/react";
