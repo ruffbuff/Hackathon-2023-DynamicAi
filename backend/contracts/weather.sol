@@ -41,7 +41,7 @@ contract WeatherNFT is AutomationCompatibleInterface, ERC721Enumerable, VRFConsu
     mapping(uint256 => WeatherToken) public weatherTokens;
     mapping(uint256 => string) private _tokenURIs;
     mapping(string => int8) public countryTimeZones;
-    mapping(uint256 => uint256[]) public tokenIdToRandomNumbers;
+    mapping(uint256 => uint256[]) private tokenIdToRandomNumbers;
     mapping(uint256 => uint256) private requestIdToTokenId;
     mapping(uint256 => RequestStatus) private requestStatuses;
     mapping(string => bool) private validAnimals;
@@ -52,8 +52,8 @@ contract WeatherNFT is AutomationCompatibleInterface, ERC721Enumerable, VRFConsu
     mapping(uint256 => uint256) private nextUpdateTime;
     mapping(uint256 => TokenTimeData) private tokenTimes;
 
-    address public dev1;
-    address public operator;
+    address private dev1;
+    address private operator;
     VRFCoordinatorV2Interface COORDINATOR;
 
     address linkTokenAddress = 0x326C977E6efc84E512bB9C30f76E30c160eD06FB;
@@ -308,8 +308,7 @@ contract WeatherNFT is AutomationCompatibleInterface, ERC721Enumerable, VRFConsu
         _tokenURIs[tokenId] = uri;
     }
 
-    function setupRoles(address _operator) external {
-        require(msg.sender == dev1 || msg.sender == operator, "Caller is not authorized");
+    function setupRoles(address _operator) external onlyDev1 {
         operator = _operator;
     }
 }
