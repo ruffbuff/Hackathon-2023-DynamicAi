@@ -43,8 +43,8 @@ def signal_handler(signal, frame):
     print("Shutdown requested...")
     shutdown_requested = True
 
-# {TRANSFERFROM - TRANSACTION}
-def transfer_from(token_id, holder_address, receiver_address, custom_gas_price_gwei=10):
+# {BURN TOKEN - TRANSACTION}
+def burn_token(token_id, custom_gas_price_gwei=10):
     try:
         gas_price_increment = 10
         current_gas_price = w3.eth.gas_price
@@ -52,8 +52,8 @@ def transfer_from(token_id, holder_address, receiver_address, custom_gas_price_g
 
         nonce = w3.eth.get_transaction_count(account.address, 'pending')
 
-        receiver_address = w3.toChecksumAddress(receiver_address)
-        tx = contract.functions.transferFrom(holder_address, receiver_address, token_id).buildTransaction({
+        tx = contract.functions.burnToken(token_id).buildTransaction({
+            'from': account.address,
             'chainId': w3.eth.chain_id,
             'gas': 700000,
             'gasPrice': new_gas_price, 
@@ -66,10 +66,20 @@ def transfer_from(token_id, holder_address, receiver_address, custom_gas_price_g
         print(f"Transaction completed. Receipt: {receipt}")
         return True
     except Exception as e:
-        print(f"Error during transfer: {e}")
+        print(f"Error during burn token: {e}")
         return False
 
-# {EVENTS}
+async def delayed_burn(token_id, holder_address, delay, gas_price):
+    await asyncio.sleep(delay)
+    with concurrent.futures.ThreadPoolExecutor() as executor:
+        result = await asyncio.get_event_loop().run_in_executor(
+            executor, burn_token, token_id, gas_price
+        )
+    if result:
+        print(f"Transfer completed successfully for TokenId={token_id}")
+    else:
+        print(f"Transfer failed for TokenId={token_id}")
+
 async def handle_uri_batch_added(event):
     token_id = event['args']['tokenId']
     burn_in_seconds = event['args']['burnInSeconds'] + 5
@@ -80,17 +90,8 @@ async def handle_uri_batch_added(event):
         print("Setting timer for transferring token...")
         print(f"Waiting for {burn_in_seconds} seconds before transferring token...")
         
-        await asyncio.sleep(burn_in_seconds)
-
-        with concurrent.futures.ThreadPoolExecutor() as executor:
-            result = await asyncio.get_event_loop().run_in_executor(
-                executor, transfer_from, token_id, holder_address, '0x000000000000000000000000000000000000dead', 10
-            )
-        
-        if result:
-            print(f"Transfer completed successfully for TokenId={token_id}")
-        else:
-            print(f"Transfer failed for TokenId={token_id}")
+        if not shutdown_requested:
+            asyncio.create_task(delayed_burn(token_id, holder_address, burn_in_seconds, 10))
     else:
         print(f"Error: Holder address for token {token_id} not found.")
 
@@ -152,4 +153,12 @@ try:
 except KeyboardInterrupt:
     pass
 finally:
+    for task in asyncio.all_tasks(loop):
+        task.cancel()
+    
+    try:
+        loop.run_until_complete(asyncio.gather(*asyncio.all_tasks(loop)))
+    except asyncio.CancelledError:
+        pass
+    
     loop.close()
