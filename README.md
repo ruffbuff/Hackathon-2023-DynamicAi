@@ -6,7 +6,7 @@ Wallet1: 0x5CEe0e6D261dA886aa4F02FB47f45E1E9fa4991b
 Wallet2: 0x5F82dE5FCf2EacD3dD3F45ec671B4870ebb60954
 
 TeamMember1: @RuffBuff
-TeamMember2: @yatadcd
+TeamMember2: @Ambientiumim
 
 Email1: ruffgreenw@gmai.com 
 Email2: yatadcd@gmail.com
