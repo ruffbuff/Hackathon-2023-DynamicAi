@@ -54,7 +54,7 @@ function SideNavBar() {
     };
   }, []);
 
-  return (
+  return ( // Добавить полоску сайдбара где будет видно иконки ==> видно полностью икноки и название; <==
     <>
       {!isSidebarVisible && (
         <button className="open-sidebar-btn" onClick={() => setIsSidebarVisible(true)}>Open</button>
