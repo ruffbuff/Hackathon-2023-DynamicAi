@@ -5,8 +5,10 @@ from dotenv import load_dotenv
 import json
 import os
 import asyncio
-import requests
+import signal
 import concurrent.futures
+
+shutdown_requested = False
 
 load_dotenv()
 provider_url = os.getenv("PROVIDER_URL")
@@ -36,16 +38,25 @@ contract = w3.eth.contract(address=contract_address, abi=contract_abi)
 minted_tokens = {}
 MAX_TOKENS_TRACKED = 1000
 
+def signal_handler(signal, frame):
+    global shutdown_requested
+    print("Shutdown requested...")
+    shutdown_requested = True
+
 # {TRANSFERFROM - TRANSACTION}
-def transfer_from(token_id, holder_address, receiver_address, custom_gas_price_gwei):
+def transfer_from(token_id, holder_address, receiver_address, custom_gas_price_gwei=10):
     try:
-        nonce = w3.eth.get_transaction_count(account.address)
+        gas_price_increment = 10
+        current_gas_price = w3.eth.gas_price
+        new_gas_price = max(w3.toWei(custom_gas_price_gwei, 'gwei'), current_gas_price + w3.toWei(gas_price_increment, 'gwei'))
+
+        nonce = w3.eth.get_transaction_count(account.address, 'pending')
+
         receiver_address = w3.toChecksumAddress(receiver_address)
-        gas_price = w3.toWei(custom_gas_price_gwei, 'gwei') 
         tx = contract.functions.transferFrom(holder_address, receiver_address, token_id).buildTransaction({
             'chainId': w3.eth.chain_id,
             'gas': 700000,
-            'gasPrice': gas_price, 
+            'gasPrice': new_gas_price, 
             'nonce': nonce,
         })
         signed_tx = w3.eth.account.sign_transaction(tx, private_key)
@@ -69,10 +80,11 @@ async def handle_uri_batch_added(event):
         print("Setting timer for transferring token...")
         print(f"Waiting for {burn_in_seconds} seconds before transferring token...")
         
-        # Use ThreadPoolExecutor to run transfer_from in a separate thread
+        await asyncio.sleep(burn_in_seconds)
+
         with concurrent.futures.ThreadPoolExecutor() as executor:
             result = await asyncio.get_event_loop().run_in_executor(
-                executor, transfer_from, token_id, holder_address, '0x000000000000000000000000000000000000dead'
+                executor, transfer_from, token_id, holder_address, '0x000000000000000000000000000000000000dead', 10
             )
         
         if result:
@@ -101,6 +113,8 @@ def handle_randomness_fulfilled(event):
 def handle_upkeep_performed(event):
     print(f"UpkeepPerformed: TokenId={event['args']['tokenId']}, NewURI={event['args']['newURI']}")
 
+signal.signal(signal.SIGINT, signal_handler)
+
 # {EVENT FILTER}
 async def log_loop(start_block, end_block):
     print("Start listening to events from the block", start_block)
@@ -112,7 +126,7 @@ async def log_loop(start_block, end_block):
         contract.events.UpkeepPerformed.createFilter(fromBlock=start_block, toBlock=end_block),
     ]
 
-    while True:
+    while not shutdown_requested:
         for event_filter in event_filters:
             for event in event_filter.get_new_entries():
                 if event.event == 'WeatherNFTMinted':
@@ -126,7 +140,16 @@ async def log_loop(start_block, end_block):
                 elif event.event == 'UpkeepPerformed':
                     handle_upkeep_performed(event)
 
+        await asyncio.sleep(1)
+
+    print("Shutting down...")
+
 loop = asyncio.get_event_loop()
 
 # {LOOP FROM BLOCK TO LATEST}
-loop.run_until_complete(log_loop(42994674, 'latest'))
+try:
+    loop.run_until_complete(log_loop(42994674, 'latest'))
+except KeyboardInterrupt:
+    pass
+finally:
+    loop.close()
