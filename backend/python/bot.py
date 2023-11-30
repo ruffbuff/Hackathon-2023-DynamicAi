@@ -43,31 +43,50 @@ def signal_handler(signal, frame):
     print("Shutdown requested...")
     shutdown_requested = True
 
+MAX_RETRIES = 3
+RETRY_INTERVAL = 5  # seconds
+
+transaction_semaphore = asyncio.Semaphore(1)
+
+async def safe_web3_call(call, *args, **kwargs):
+    """Retry Web3 calls in case of failure or timeout."""
+    for attempt in range(MAX_RETRIES):
+        try:
+            return await asyncio.wait_for(call(*args, **kwargs), timeout=30)
+        except (Exception, asyncio.TimeoutError) as e:
+            if attempt < MAX_RETRIES - 1:
+                print(f"Web3 call failed, retrying... (attempt {attempt + 1})")
+                await asyncio.sleep(RETRY_INTERVAL)
+            else:
+                print(f"Web3 call failed after {MAX_RETRIES} attempts.")
+                raise
+
 # {BURN TOKEN - TRANSACTION}
-def burn_token(token_id, custom_gas_price_gwei=10):
-    try:
-        gas_price_increment = 10
-        current_gas_price = w3.eth.gas_price
-        new_gas_price = max(w3.toWei(custom_gas_price_gwei, 'gwei'), current_gas_price + w3.toWei(gas_price_increment, 'gwei'))
+async def burn_token(token_id, custom_gas_price_gwei=10):
+    """Burn a token with retries and semaphore control."""
+    async with transaction_semaphore:
+        try:
+            gas_price_increment = 10
+            current_gas_price = w3.eth.gas_price
+            new_gas_price = max(w3.toWei(custom_gas_price_gwei, 'gwei'), current_gas_price + w3.toWei(gas_price_increment, 'gwei'))
 
-        nonce = w3.eth.get_transaction_count(account.address, 'pending')
+            nonce = w3.eth.get_transaction_count(account.address, 'pending')
 
-        tx = contract.functions.burnToken(token_id).buildTransaction({
-            'from': account.address,
-            'chainId': w3.eth.chain_id,
-            'gas': 700000,
-            'gasPrice': new_gas_price, 
-            'nonce': nonce,
-        })
-        signed_tx = w3.eth.account.sign_transaction(tx, private_key)
-        tx_hash = w3.eth.sendRawTransaction(signed_tx.rawTransaction)
-        print(f"Transaction sent, waiting for receipt...")
-        receipt = w3.eth.waitForTransactionReceipt(tx_hash)
-        print(f"Transaction completed. Receipt: {receipt}")
-        return True
-    except Exception as e:
-        print(f"Error during burn token: {e}")
-        return False
+            tx = contract.functions.burnToken(token_id).buildTransaction({
+                'from': account.address,
+                'chainId': w3.eth.chain_id,
+                'gas': 700000,
+                'gasPrice': new_gas_price, 
+                'nonce': nonce,
+            })
+            signed_tx = w3.eth.account.sign_transaction(tx, private_key)
+            tx_hash = await safe_web3_call(w3.eth.sendRawTransaction, signed_tx.rawTransaction)
+            receipt = await safe_web3_call(w3.eth.waitForTransactionReceipt, tx_hash)
+            print(f"Transaction completed. Receipt: {receipt}")
+            return True
+        except Exception as e:
+            print(f"Error during burn token: {e}")
+            return False
 
 async def delayed_burn(token_id, holder_address, delay, gas_price):
     await asyncio.sleep(delay)
@@ -80,6 +99,7 @@ async def delayed_burn(token_id, holder_address, delay, gas_price):
     else:
         print(f"Transfer failed for TokenId={token_id}")
 
+# {EVENTS}
 async def handle_uri_batch_added(event):
     token_id = event['args']['tokenId']
     burn_in_seconds = event['args']['burnInSeconds'] + 5
@@ -91,7 +111,7 @@ async def handle_uri_batch_added(event):
         print(f"Waiting for {burn_in_seconds} seconds before transferring token...")
         
         if not shutdown_requested:
-            asyncio.create_task(delayed_burn(token_id, holder_address, burn_in_seconds, 10))
+            await delayed_burn(token_id, holder_address, burn_in_seconds, 10)
     else:
         print(f"Error: Holder address for token {token_id} not found.")
 
@@ -155,7 +175,6 @@ except KeyboardInterrupt:
 finally:
     for task in asyncio.all_tasks(loop):
         task.cancel()
-    
     try:
         loop.run_until_complete(asyncio.gather(*asyncio.all_tasks(loop)))
     except asyncio.CancelledError:
