@@ -115,7 +115,7 @@ function Header() {
               <option value="Estonia">Estonia</option>
               <option value="Bangladesh">Bangladesh</option>
               <option value="Poland">Poland</option>
-              <option value="USA">USA</option>
+              <option value="SaudiArabia">Saudi Arabia</option>
               <option value="Japan">Japan</option>
             </Select>
             <Select placeholder="Select Style" className="select-input" value={style} onChange={(e) => setStyle(e.target.value)}>
