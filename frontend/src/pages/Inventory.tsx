@@ -37,7 +37,7 @@ function Inventory() {
     if (address) {
       const fetchNFTs = async () => {
         const options = { method: 'GET', headers: { accept: 'application/json' } };
-        const url = `https://polygon-mumbai.g.alchemy.com/nft/v3/DquPqd0BkVZtmd5HQkefL0hbs_SLMLfX/getNFTsForOwner?owner=${address}&contractAddresses[]=0x69B09723fC2970fbEa3f541DCce1C3e13ED41fd0&withMetadata=true&pageSize=100`;
+        const url = `https://polygon-mumbai.g.alchemy.com/nft/v3/DquPqd0BkVZtmd5HQkefL0hbs_SLMLfX/getNFTsForOwner?owner=${address}&contractAddresses[]=0x6788dF648847fFD0dB5f76FdB35DC244559486E2&withMetadata=true&pageSize=100`;
   
         try {
           const response = await fetch(url, options);

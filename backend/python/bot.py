@@ -1,4 +1,5 @@
 # python/bot.py
+import websockets
 from web3 import Web3, Account
 from web3.middleware import geth_poa_middleware
 from dotenv import load_dotenv
@@ -139,29 +140,47 @@ signal.signal(signal.SIGINT, signal_handler)
 # {EVENT FILTER}
 async def log_loop(start_block, end_block):
     print("Start listening to events from the block", start_block)
-    event_filters = [
-        contract.events.WeatherNFTMinted.createFilter(fromBlock=start_block, toBlock=end_block),
-        contract.events.RandomnessRequested.createFilter(fromBlock=start_block, toBlock=end_block),
-        contract.events.RandomnessFulfilled.createFilter(fromBlock=start_block, toBlock=end_block),
-        contract.events.URIBatchAdded.createFilter(fromBlock=start_block, toBlock=end_block),
-        contract.events.UpkeepPerformed.createFilter(fromBlock=start_block, toBlock=end_block),
-    ]
-
+    
     while not shutdown_requested:
-        for event_filter in event_filters:
-            for event in event_filter.get_new_entries():
-                if event.event == 'WeatherNFTMinted':
-                    handle_weather_nft_minted(event)
-                elif event.event == 'RandomnessRequested':
-                    handle_randomness_requested(event)
-                elif event.event == 'RandomnessFulfilled':
-                    handle_randomness_fulfilled(event)
-                elif event.event == 'URIBatchAdded':
-                    await handle_uri_batch_added(event)
-                elif event.event == 'UpkeepPerformed':
-                    handle_upkeep_performed(event)
+        try:
+            event_filters = [
+                contract.events.WeatherNFTMinted.createFilter(fromBlock=start_block, toBlock=end_block),
+                contract.events.RandomnessRequested.createFilter(fromBlock=start_block, toBlock=end_block),
+                contract.events.RandomnessFulfilled.createFilter(fromBlock=start_block, toBlock=end_block),
+                contract.events.URIBatchAdded.createFilter(fromBlock=start_block, toBlock=end_block),
+                contract.events.UpkeepPerformed.createFilter(fromBlock=start_block, toBlock=end_block),
+            ]
 
-        await asyncio.sleep(1)
+            for event_filter in event_filters:
+                try:
+                    new_entries = event_filter.get_new_entries()
+                    for event in new_entries:
+                        print(f"Event received: {event.event}")
+                        if event.event == 'WeatherNFTMinted':
+                            handle_weather_nft_minted(event)
+                        elif event.event == 'RandomnessRequested':
+                            handle_randomness_requested(event)
+                        elif event.event == 'RandomnessFulfilled':
+                            handle_randomness_fulfilled(event)
+                        elif event.event == 'URIBatchAdded':
+                            await handle_uri_batch_added(event)
+                        elif event.event == 'UpkeepPerformed':
+                            handle_upkeep_performed(event)
+                except Exception as e:
+                    print(f"Error processing events from filter: {e}")
+
+            await asyncio.sleep(1)
+
+        except websockets.exceptions.ConnectionClosedError:
+            print("WebSocket connection closed. Attempting to reconnect...")
+            w3 = Web3(Web3.WebsocketProvider(full_provider_url))
+            w3.middleware_onion.inject(geth_poa_middleware, layer=0)
+            if not w3.isConnected():
+                print("Failed to reconnect to the blockchain")
+            else:
+                print("Reconnected to the blockchain")
+        except Exception as e:
+            print(f"Unexpected error: {e}")
 
     print("Shutting down...")
 
