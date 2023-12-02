@@ -1,43 +1,37 @@
 // src/pages/Inventory.tsx
 import React, { useState, useEffect } from 'react';
+import { ethers } from 'ethers';
+import { contracts } from '../sol/contracts';
 import { useAddress } from "@thirdweb-dev/react";
 import './Inventory.css';
-import {
-    Table,
-    Thead,
-    Tbody,
-    Tr,
-    Th,
-    Td,
-    Image,
-    Box,
-    Text
-  } from '@chakra-ui/react';
+import { Table, Thead, Tbody, Tr, Th, Td, Image, Box, Text } from '@chakra-ui/react';
 
 interface NFT {
-    tokenId: string;
-    name: string;
-    description: string;
-    attributes: Array<{
-      trait_type: string;
-      value: string | number;
-    }>;
-    image: {
-      cachedUrl: string;
-    };
-  }
+  tokenId: string;
+  name: string;
+  description: string;
+  attributes: Array<{
+    trait_type: string;
+    value: string | number;
+  }>;
+  image: {
+    cachedUrl: string;
+  };
+}
 
 function Inventory() {
   const address = useAddress();
   const [nfts, setNfts] = useState<NFT[]>([]);
   const [selectedNft, setSelectedNft] = useState<NFT | null>(null);
   const [imageClicked, setImageClicked] = useState(false);
+  const [nextUpdateTime, setNextUpdateTime] = useState<number>(0);
+  const [currentTime, setCurrentTime] = useState(Math.floor(Date.now() / 1000));
 
   useEffect(() => {
     if (address) {
       const fetchNFTs = async () => {
         const options = { method: 'GET', headers: { accept: 'application/json' } };
-        const url = `https://polygon-mumbai.g.alchemy.com/nft/v3/DquPqd0BkVZtmd5HQkefL0hbs_SLMLfX/getNFTsForOwner?owner=${address}&contractAddresses[]=0x6788dF648847fFD0dB5f76FdB35DC244559486E2&withMetadata=true&pageSize=100`;
+        const url = `https://polygon-mumbai.g.alchemy.com/nft/v3/DquPqd0BkVZtmd5HQkefL0hbs_SLMLfX/getNFTsForOwner?owner=${address}&contractAddresses[]=0xFB8F529E9bFb1a3a2104b7d2EFF1eD47f3e7dD75&withMetadata=true&pageSize=100`;
   
         try {
           const response = await fetch(url, options);
@@ -61,9 +55,46 @@ function Inventory() {
     }
   }, [address]);
 
-  const handleNftClick = (nft: NFT) => {
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setCurrentTime(Math.floor(Date.now() / 1000));
+    }, 1000);
+
+    return () => clearInterval(timer);
+  }, []);
+
+  const getNextUpdateTime = async (tokenId: string) => {
+    const provider = new ethers.providers.Web3Provider(window.ethereum);
+    const contract = new ethers.Contract(contracts.weatherContract.address, contracts.weatherContract.abi, provider);
+
+    try {
+      const timestamp = await contract.nextUpdateTime(tokenId);
+      return timestamp.toNumber();
+    } catch (error) {
+      console.error('Error fetching next update time:', error);
+    }
+  };
+
+  const handleNftClick = async (nft: NFT) => {
     setSelectedNft(nft);
     setImageClicked(true);
+
+    const timestamp = await getNextUpdateTime(nft.tokenId);
+    setNextUpdateTime(timestamp);
+  };
+
+  const convertTimestampToTime = (timestamp: number) => {
+    const timeLeft = timestamp - currentTime;
+
+    if (timeLeft <= 0) {
+      return "Time's up!";
+    }
+
+    const hours = Math.floor(timeLeft / 3600);
+    const minutes = Math.floor((timeLeft % 3600) / 60);
+    const seconds = timeLeft % 60;
+
+    return `${hours}h ${minutes}m ${seconds}s`;
   };
 
   return (
@@ -77,12 +108,15 @@ function Inventory() {
                 alt={selectedNft.name}
                 className={imageClicked ? "larger-image" : "thumbnail-image"}
               />
+              <Text color="#ff0000">
+                {nextUpdateTime ? convertTimestampToTime(nextUpdateTime) : "Loading..."}
+              </Text>
             </Box>
             <Box className="text-box">
               <Text fontSize="2xl">{selectedNft.name}</Text>
               <Text>{selectedNft.description}</Text>
               {selectedNft.attributes.find(attr => attr.trait_type === "Deadline") && (
-                <Text color="red.500">
+                <Text color="#ff0000">
                   Deadline: {selectedNft.attributes.find(attr => attr.trait_type === "Deadline")?.value}
                 </Text>
               )}

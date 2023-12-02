@@ -81,7 +81,7 @@ function Header() {
   if (connectionStatus === "unknown") {
     return (
       <Flex className="header-container" justifyContent="center" alignItems="center" height="100vh">
-        <Box className="info-box" p={6} boxShadow="xl" rounded="lg" bg="gray.50">
+        <Box className="info-box" p={6} boxShadow="xl" rounded="lg" bg="#4b2c6e">
           <p>Loading wallet status...</p>
         </Box>
       </Flex>
@@ -103,7 +103,7 @@ function Header() {
         maxWidth="md"
         m="auto"
       >
-        <Box className="info-box" p={6} boxShadow="xl" rounded="lg" bg="gray">
+        <Box className="info-box" p={6} boxShadow="xl" rounded="lg" bg="#4b2c6e">
             <Select placeholder="Select Animal" className="select-input" value={animal} onChange={(e) => setAnimal(e.target.value)}>
               <option value="Cat">Cat</option>
               <option value="Dog">Dog</option>

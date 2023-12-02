@@ -1,3 +1,9 @@
+@keyframes pulseBackground {
+  0% { background-color: #343a40; }
+  50% { background-color: #495057; }
+  100% { background-color: #343a40; }
+}
+
 .side-nav-bar {
 width: 360px;
 height: 100vh;
@@ -7,6 +13,7 @@ transition: left 0.3s;
 z-index: 1000;
 background-color: #343a40;
 padding: 1rem;
+animation: pulseBackground 3s ease infinite;
 }
 
 .open-sidebar-btn {
@@ -35,12 +42,13 @@ padding: 10px 15px;
 margin: 10px 0;
 text-decoration: none;
 border-radius: 4px;
-transition: background-color 0.2s, color 0.2s;
+transition: background-color 0.2s, color 0.2s, transform 0.2s;
 }
 
 .sidebar-link:hover {
 background-color: #495057;
 color: #f8f9fa;
+transform: scale(1.05);
 }
 
 .sidebar-wallet-link {

@@ -1,19 +1,28 @@
 /* frontend/src/header/Header.css */
+@keyframes animatedBackground {
+  0% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
+  100% { background-position: 0% 50%; }
+}
+
 .header-container {
   display: flex;
   justify-content: center;
   align-items: center;
   height: 100vh;
-  background-color: rgb(119, 119, 119);
+  background: linear-gradient(270deg, #2e1055, #111827, #4b2c6e);
+  background-size: 400% 400%;
+  animation: animatedBackground 15s ease infinite;
 }
 
 .info-box {
-  background-color: #ffffff;
+  background-color: rgba(255, 255, 255, 0.9);
   box-shadow: 0 4px 15px rgba(0,0,0,0.1);
   border-radius: 12px;
   padding: 30px;
   max-width: 500px;
   width: 100%;
+  backdrop-filter: blur(10px);
 }
 
 .select-input, .input-input {
@@ -21,8 +30,9 @@
   margin-bottom: 20px;
   padding: 15px;
   border-radius: 8px;
-  border: 1px solid #d1d1d6;
-  background-color: #f8f8fa;
+  background: linear-gradient(270deg, #2e1055, #111827, #4b2c6e);
+  background-size: 400% 400%;
+  animation: animatedBackground 15s ease infinite;
 }
 
 .mint-btn {
@@ -40,7 +50,7 @@
 }
 
 .mint-btn:hover {
-  background-color: #0056b3;
+  background-color: #2e1055;
 }
 
 @media (max-width: 768px) {
