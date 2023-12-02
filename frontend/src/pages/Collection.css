@@ -1,8 +1,6 @@
 /* Collection.css */
 body {
-background: linear-gradient(270deg, #2e1055, #111827, #4b2c6e);
-background-size: 400% 400%;
-animation: animatedBackground 15s ease infinite;
+background-color: #424242;
 }
 
 .collection-container {
@@ -11,12 +9,6 @@ flex-wrap: wrap;
 justify-content: center;
 gap: 20px;
 padding: 20px;
-}
-
-@keyframes animatedBackground {
-0% { background-position: 0% 50%; }
-50% { background-position: 100% 50%; }
-100% { background-position: 0% 50%; }
 }
 
 .nft-card {

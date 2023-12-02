@@ -4,7 +4,7 @@ import { ethers } from 'ethers';
 import { contracts } from '../sol/contracts';
 import { useAddress } from "@thirdweb-dev/react";
 import './Inventory.css';
-import { Table, Thead, Tbody, Tr, Th, Td, Image, Box, Text } from '@chakra-ui/react';
+import { Image, Box, Text } from '@chakra-ui/react';
 
 interface NFT {
   tokenId: string;
@@ -31,11 +31,12 @@ function Inventory() {
     if (address) {
       const fetchNFTs = async () => {
         const options = { method: 'GET', headers: { accept: 'application/json' } };
-        const url = `https://polygon-mumbai.g.alchemy.com/nft/v3/DquPqd0BkVZtmd5HQkefL0hbs_SLMLfX/getNFTsForOwner?owner=${address}&contractAddresses[]=0xFB8F529E9bFb1a3a2104b7d2EFF1eD47f3e7dD75&withMetadata=true&pageSize=100`;
+        const url = `https://polygon-mumbai.g.alchemy.com/nft/v3/DquPqd0BkVZtmd5HQkefL0hbs_SLMLfX/getNFTsForOwner?owner=${address}&contractAddresses[]=0xF894116408b1929794233C4B9EF866b6420bB851&withMetadata=true&pageSize=100`;
   
         try {
           const response = await fetch(url, options);
           const data = await response.json();
+          console.log(data);
           const fetchedNfts = data.ownedNfts.map((nft: any) => ({
             tokenId: nft.tokenId,
             name: nft.name,
@@ -97,6 +98,19 @@ function Inventory() {
     return `${hours}h ${minutes}m ${seconds}s`;
   };
 
+  const formatVrfValue = (value: any) => {
+    if (Array.isArray(value)) {
+      return value.map(v => {
+        const num = parseFloat(v);
+        if (!isNaN(num)) {
+          return num.toExponential(2);
+        }
+        return v;
+      }).join(', ');
+    }
+    return value.toString();
+  };  
+
   return (
     <Box className="main-container">
       <Box className="image-and-text-container">
@@ -108,38 +122,26 @@ function Inventory() {
                 alt={selectedNft.name}
                 className={imageClicked ? "larger-image" : "thumbnail-image"}
               />
-              <Text color="#ff0000">
+            </Box>
+            <Box className="timer-box">
+              <Text>
                 {nextUpdateTime ? convertTimestampToTime(nextUpdateTime) : "Loading..."}
               </Text>
             </Box>
             <Box className="text-box">
               <Text fontSize="2xl">{selectedNft.name}</Text>
               <Text>{selectedNft.description}</Text>
-              {selectedNft.attributes.find(attr => attr.trait_type === "Deadline") && (
-                <Text color="#ff0000">
-                  Deadline: {selectedNft.attributes.find(attr => attr.trait_type === "Deadline")?.value}
-                </Text>
-              )}
-              <Table variant="simple">
-                <Thead>
-                  <Tr>
-                    <Th>Attribute</Th>
-                    <Th>Value</Th>
-                  </Tr>
-                </Thead>
-                <Tbody>
-                  {selectedNft.attributes.filter(attr => attr.trait_type !== "Deadline").map((attr, index) => (
-                    <Tr key={index}>
-                      <Td>{attr.trait_type}</Td>
-                      <Td>{attr.value}</Td>
-                    </Tr>
-                  ))}
-                </Tbody>
-              </Table>
+              <Text>Token ID: {selectedNft.tokenId}</Text>
+              <Text>Time of Day: {selectedNft.attributes.find(attr => attr.trait_type === "Time_of_day")?.value}</Text>
+              <Text>Animal: {selectedNft.attributes.find(attr => attr.trait_type === "Animal")?.value}</Text>
+              <Text>Name: {selectedNft.attributes.find(attr => attr.trait_type === "Name")?.value}</Text>
+              <Text>Country: {selectedNft.attributes.find(attr => attr.trait_type === "Country")?.value}</Text>
+              <Text>Style: {selectedNft.attributes.find(attr => attr.trait_type === "Style")?.value}</Text>
+              <Text>VRF Random: {formatVrfValue(selectedNft.attributes.find(attr => attr.trait_type === "VRF Random")?.value)}</Text>
             </Box>
           </>
         ) : (
-          <Text>Select an NFT to view details</Text>
+          <Text textColor="white">Select an NFT to view details</Text>
         )}
       </Box>
 

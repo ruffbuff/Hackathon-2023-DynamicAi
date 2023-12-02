@@ -8,6 +8,7 @@ interface NFT {
   name: string;
   image: { cachedUrl: string };
   burnTime: number;
+  holder: string;
 }
 
 function Collection() {
@@ -16,8 +17,8 @@ function Collection() {
   const [remainingTime, setRemainingTime] = useState('');
 
   const calculateRemainingTime = (burnTime: number) => {
-    const now = Date.now() / 1000; // current time in seconds
-    const timeLeft = burnTime - now; // time left in seconds
+    const now = Date.now() / 1000;
+    const timeLeft = burnTime - now;
 
     if (timeLeft <= 0) {
       return 'Burn time passed';
@@ -32,26 +33,43 @@ function Collection() {
   };
 
   const fetchBurnTimes = async () => {
-    const provider = new ethers.providers.Web3Provider(window.ethereum);
-    const contract = new ethers.Contract(contracts.weatherContract.address, contracts.weatherContract.abi, provider);
-    const [, , burnTimes] = await contract.getAllTokenBurnTimes();
-    return burnTimes.map((time: ethers.BigNumber) => time.toNumber());
+    try {
+      const provider = new ethers.providers.Web3Provider(window.ethereum);
+      const contract = new ethers.Contract(contracts.weatherContract.address, contracts.weatherContract.abi, provider);
+      const [, , burnTimes] = await contract.getAllTokenBurnTimes();
+      return burnTimes.map((time: ethers.BigNumber) => time.toNumber());
+    } catch (error) {
+      console.error('Error fetching burn times:', error);
+      return [];
+    }
   };
 
   const fetchNFTs = useCallback(async () => {
-    const response = await fetch('https://polygon-mumbai.g.alchemy.com/nft/v3/DquPqd0BkVZtmd5HQkefL0hbs_SLMLfX/getNFTsForCollection?contractAddress=0xFB8F529E9bFb1a3a2104b7d2EFF1eD47f3e7dD75&withMetadata=true', {
-      method: 'GET',
-      headers: { 'accept': 'application/json' }
-    });
-    const data = await response.json();
-    const burnTimes = await fetchBurnTimes();
-    const fetchedNfts = data.nfts.map((nft: any, index: number) => ({
-      name: nft.name,
-      image: nft.image,
-      burnTime: burnTimes[index]
-    }));
-    setNfts(fetchedNfts);
-  }, []);
+    try {
+      const burnTimes = await fetchBurnTimes();
+
+      if (burnTimes.length === 0) {
+        return;
+      }
+
+      const response = await fetch('https://polygon-mumbai.g.alchemy.com/nft/v3/DquPqd0BkVZtmd5HQkefL0hbs_SLMLfX/getNFTsForCollection?contractAddress=0xF894116408b1929794233C4B9EF866b6420bB851&withMetadata=true', {
+        method: 'GET',
+        headers: { 'accept': 'application/json' }
+      });
+      const data = await response.json();
+      const fetchedNfts = data.nfts.map((nft: any, index: number) => ({
+        name: nft.name,
+        image: nft.image,
+        burnTime: burnTimes[index],
+        holder: nft.owner
+      }))
+      .filter((nft: NFT) => nft.holder && nft.holder !== '0x0000000000000000000000000000000000000000' && nft.holder.toLowerCase() !== 'dead');
+
+      setNfts(fetchedNfts);
+    } catch (error) {
+      console.error('Error fetching NFTs:', error);
+    }
+  }, []);  
 
   useEffect(() => {
     fetchNFTs().catch(console.error);

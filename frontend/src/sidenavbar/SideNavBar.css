@@ -1,9 +1,3 @@
-@keyframes pulseBackground {
-  0% { background-color: #343a40; }
-  50% { background-color: #495057; }
-  100% { background-color: #343a40; }
-}
-
 .side-nav-bar {
 width: 360px;
 height: 100vh;
@@ -11,9 +5,8 @@ position: fixed;
 left: -360px;
 transition: left 0.3s;
 z-index: 1000;
-background-color: #343a40;
+background-color: #5e5e5e;
 padding: 1rem;
-animation: pulseBackground 3s ease infinite;
 }
 
 .open-sidebar-btn {

@@ -1,6 +1,8 @@
 import React, { useState, useEffect, useRef, MouseEvent } from 'react';
 import { ConnectWallet, useAddress, useBalance } from "@thirdweb-dev/react";
-import { BsBackpack2, BsCake2, BsArchive, BsWallet2 } from "react-icons/bs";
+import { BsBackpack2, BsCake2, BsWallet2 } from "react-icons/bs";
+import { RiNftLine } from "react-icons/ri";
+import { FaBurn } from "react-icons/fa";
 import 'bootstrap/dist/css/bootstrap.min.css';
 import './SideNavBar.css';
 
@@ -79,12 +81,17 @@ function SideNavBar() {
 
         <a href="/" className="sidebar-link">
           <BsCake2 className="sidebar-icon" />
-          <span>Minft NFT</span>
+          <span>Mint</span>
         </a>
 
         <a href="/collection" className="sidebar-link">
-          <BsArchive className="sidebar-icon" />
-          <span>Collection</span>
+          <FaBurn className="sidebar-icon" />
+          <span>DeadLine NFTs</span>
+        </a>
+
+        <a href="/collection2" className="sidebar-link">
+          <RiNftLine className="sidebar-icon" />
+          <span>Final NFTs</span>
         </a>
 
         <a href="/inventory" className="sidebar-link">

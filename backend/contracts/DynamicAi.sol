@@ -2,11 +2,18 @@
 pragma solidity 0.8.22;
 import "@openzeppelin/contracts/token/ERC721/extensions/ERC721Enumerable.sol";
 import "@openzeppelin/contracts/utils/Strings.sol";
-import "./Counters.sol";
-import "@chainlink/contracts/src/v0.8/interfaces/VRFCoordinatorV2Interface.sol";
+import "@openzeppelin/contracts/utils/Counters.sol";
 import "@chainlink/contracts/src/v0.8/vrf/VRFConsumerBaseV2.sol";
 import "@chainlink/contracts/src/v0.8/shared/access/ConfirmedOwner.sol";
 import "@chainlink/contracts/src/v0.8/automation/AutomationCompatible.sol";
+interface VRFCoordinatorV2Interface {
+    function getRequestConfig() external view returns (uint16, uint32, bytes32[] memory);
+    function requestRandomWords(bytes32 keyHash, uint64 subId, uint16 minimumRequestConfirmations, uint32 callbackGasLimit, uint32 numWords) external returns (uint256 requestId);
+    function getSubscription(uint64 subId) external view returns (uint96 balance, uint64 reqCount, address owner, address[] memory consumers);
+}
+interface IDynamicV2 {
+    function mint(address to) external;
+}
 contract Dynamic is AutomationCompatibleInterface, ERC721Enumerable, VRFConsumerBaseV2, ConfirmedOwner {
     using Strings for uint256;
     using Counters for Counters.Counter;
@@ -17,7 +24,6 @@ contract Dynamic is AutomationCompatibleInterface, ERC721Enumerable, VRFConsumer
     event RandomnessFulfilled(uint256 tokenId, uint256[] randomNumbers);
     event URIBatchAdded(uint256 indexed tokenId, string[4] uris, uint256 burnInSeconds);
     event UpkeepPerformed(uint256 tokenId, string newURI);
-    event Burned(address operator, uint256 tokenId);
 
     struct WeatherToken {
         string animal;
@@ -26,9 +32,9 @@ contract Dynamic is AutomationCompatibleInterface, ERC721Enumerable, VRFConsumer
         string style;
     }
 
-    struct TokenTimeData {
-        uint256 expirationTime;
-        bool burnEventTriggered;
+    struct TokenBurnData {
+        uint256 burnTime;
+        bool isSet;
     }
 
     mapping(uint256 => string) public _tokenURIs;
@@ -36,18 +42,21 @@ contract Dynamic is AutomationCompatibleInterface, ERC721Enumerable, VRFConsumer
 
     mapping(string => bool) private validAnimals;
     mapping(string => bool) private validStyles;
+    
+    mapping(uint256 => bool) public hasURIBatch;
 
     mapping(uint256 => WeatherToken) public weatherTokens;
-
+    mapping(uint256 => TokenBurnData) public tokenBurnTimes;
+    
     mapping(uint256 => uint256) public requestIdToTokenId;
     mapping(uint256 => uint256[]) public tokenIdToRandomNumbers;
     mapping(uint256 => string[4]) public uriBatches;
-    mapping(uint256 => uint256) private nextURIIndex;
-    mapping(uint256 => uint256) private nextUpdateTime;
-    mapping(uint256 => TokenTimeData) private tokenTimes;
+    mapping(uint256 => uint256) public nextURIIndex;
+    mapping(uint256 => uint256) public nextUpdateTime;
 
     address private dev1; // Deployer
     address private operator; // Bot-operator
+    address private secondContractAddress;
     VRFCoordinatorV2Interface COORDINATOR;
 
     bytes32 keyHash = 0x4b09e658ed251bcafeebbc69400383d49f344ace09b9576fe248bb02c003fe9f;
@@ -73,7 +82,7 @@ contract Dynamic is AutomationCompatibleInterface, ERC721Enumerable, VRFConsumer
         countryTimeZones["Estonia"] = 2;
         countryTimeZones["Bangladesh"] = 6;
         countryTimeZones["Poland"] = 1;
-        countryTimeZones["USA"] = -5;
+        countryTimeZones["SaudiArabia"] = 3;
         countryTimeZones["Japan"] = 9;
         validAnimals["Cat"] = true;
         validAnimals["Dog"] = true;
@@ -88,35 +97,20 @@ contract Dynamic is AutomationCompatibleInterface, ERC721Enumerable, VRFConsumer
     }
 
     function checkUpkeep(bytes calldata /* checkData */) external view override returns (bool upkeepNeeded, bytes memory performData) {
-        uint256 numTokensToUpdate = 0;
-
         for (uint256 i = 1; i <= totalSupply(); i++) {
-            if (block.timestamp >= nextUpdateTime[i] && uriBatches[i].length > 0) {
-                numTokensToUpdate++;
+            if (block.timestamp >= nextUpdateTime[i]) {
+                upkeepNeeded = true;
+                performData = abi.encode(i);
+                break;
             }
-        }
-
-        upkeepNeeded = numTokensToUpdate > 0;
-
-        if (upkeepNeeded) {
-            uint256[] memory tokensToUpdate = new uint256[](numTokensToUpdate);
-            uint256 updateCounter = 0;
-
-            for (uint256 i = 1; i <= totalSupply(); i++) {
-                if (block.timestamp >= nextUpdateTime[i] && uriBatches[i].length > 0) {
-                    tokensToUpdate[updateCounter++] = i;
-                }
-            }
-            performData = abi.encode(tokensToUpdate);
         }
     }
 
     function performUpkeep(bytes calldata performData) external override {
-        uint256[] memory tokensToUpdate = abi.decode(performData, (uint256[]));
-        
-        for (uint256 i = 0; i < tokensToUpdate.length; i++) {
-            updateTokenURI(tokensToUpdate[i]);
-            emit UpkeepPerformed(tokensToUpdate[i], _tokenURIs[tokensToUpdate[i]]);
+        uint256 tokenId = abi.decode(performData, (uint256));
+        if (tokenExists(tokenId) && nextURIIndex[tokenId] < uriBatches[tokenId].length) {
+            updateTokenURI(tokenId);
+            emit UpkeepPerformed(tokenId, _tokenURIs[tokenId]);
         }
     }
 
@@ -150,60 +144,57 @@ contract Dynamic is AutomationCompatibleInterface, ERC721Enumerable, VRFConsumer
 
         weatherTokens[tokenId] = WeatherToken(animal, name, country, style);
         requestIdToTokenId[requestId] = tokenId;
+        hasURIBatch[tokenId] = false;
         emit WeatherNFTMinted(msg.sender, tokenId, animal, name, country, style);
         emit RandomnessRequested(tokenId, requestId);
     }
 
     function addURIBatch(uint256 tokenId, string[4] memory uris, uint256 burnInSeconds) public onlyDev1OrOperator {
-        require(tokenExists(tokenId), "Token ID does not exist");
+        require(tokenExists(tokenId), "Token does not exist");
+        require(!hasURIBatch[tokenId], "URI batch already added for this token");
+        require(uris.length == 4, "URI array must contain exactly 4 URIs");
+        require(!tokenBurnTimes[tokenId].isSet, "Token is burned");
+
+        for(uint i = 0; i < uris.length; i++) {
+            require(bytes(uris[i]).length > 0, "URI cannot be empty");
+        }
+
         uriBatches[tokenId] = uris;
         uint256 index = calculateInitialURIIndex(tokenId, countryTimeZones[weatherTokens[tokenId].country]);
         _setTokenURI(tokenId, uriBatches[tokenId][index]);
         nextURIIndex[tokenId] = (index + 1) % uriBatches[tokenId].length;
 
-        int8 timeZone = countryTimeZones[weatherTokens[tokenId].country];
-        nextUpdateTime[tokenId] = block.timestamp + calculateNextUpdateTime(timeZone);
-        tokenTimes[tokenId].expirationTime = block.timestamp + burnInSeconds;
+        nextUpdateTime[tokenId] = block.timestamp + calculateNextUpdateTime(tokenId);
+        tokenBurnTimes[tokenId] = TokenBurnData(block.timestamp + burnInSeconds, true);
 
+        hasURIBatch[tokenId] = true;
         emit URIBatchAdded(tokenId, uris, burnInSeconds);
     }
 
-    function getTokenExpirationTime(uint256 tokenId) public view returns (uint256) {
-        require(tokenExists(tokenId), "Token does not exist");
-        return tokenTimes[tokenId].expirationTime;
-    }
-
     function updateTokenURI(uint256 tokenId) internal {
-        require(tokenExists(tokenId), "Token does not exist");
-        if (nextURIIndex[tokenId] < uriBatches[tokenId].length) {
-            _setTokenURI(tokenId, uriBatches[tokenId][nextURIIndex[tokenId]]);
-            nextURIIndex[tokenId] = (nextURIIndex[tokenId] + 1) % uriBatches[tokenId].length;
-
-            int8 timeZone = countryTimeZones[weatherTokens[tokenId].country];
-            nextUpdateTime[tokenId] = block.timestamp + calculateNextUpdateTime(timeZone);
-        }
+        _setTokenURI(tokenId, uriBatches[tokenId][nextURIIndex[tokenId]]);
+        nextURIIndex[tokenId] = (nextURIIndex[tokenId] + 1) % uriBatches[tokenId].length;
+        nextUpdateTime[tokenId] = block.timestamp + calculateNextUpdateTime(tokenId);
     }
 
-    function calculateNextUpdateTime(int8 timeZone) private view returns (uint256) {
-        uint256 adjustedTime;
-        if (timeZone < 0) {
-            uint256 positiveOffset = uint256(int256(timeZone) * -1);
-            adjustedTime = block.timestamp - positiveOffset * 1 hours;
-        } else {
-            uint256 positiveOffset = uint256(int256(timeZone));
-            adjustedTime = block.timestamp + positiveOffset * 1 hours;
-        }
-
-        uint256 dayStart = adjustedTime - (adjustedTime % 1 days);
-        uint256[4] memory updateTimes = [dayStart + 6 hours, dayStart + 12 hours, dayStart + 18 hours, dayStart + 24 hours];
+    function calculateNextUpdateTime(uint256 tokenId) private view returns (uint256) {
+        int8 timeZone = countryTimeZones[weatherTokens[tokenId].country];
+        uint256 countryTime = calculateCountryTime(block.timestamp, timeZone);
+        uint256 dayStart = countryTime - (countryTime % 1 days);
+        uint256[4] memory updateTimes = [
+            dayStart + 6 hours,  // 6:00
+            dayStart + 12 hours, // 12:00
+            dayStart + 18 hours, // 18:00
+            dayStart + 23 hours + 59 minutes // 23:59
+        ];
 
         for (uint i = 0; i < 4; i++) {
-            if (updateTimes[i] > adjustedTime) {
-                return updateTimes[i] - block.timestamp;
+            if (countryTime < updateTimes[i]) {
+                return updateTimes[i] - countryTime;
             }
         }
 
-        return updateTimes[0] + 1 days - block.timestamp;
+        return updateTimes[0] + 1 days - countryTime;
     }
 
     function calculateInitialURIIndex(uint256 tokenId, int8 timeZone) private view returns (uint256) {
@@ -211,6 +202,16 @@ contract Dynamic is AutomationCompatibleInterface, ERC721Enumerable, VRFConsumer
         uint256 timeOfDay = (localTime % 1 days);
         uint256 index = timeOfDay / (6 hours);
         return index % uriBatches[tokenId].length;
+    }
+
+    function calculateCountryTime(uint256 timestamp, int8 timeZone) private pure returns (uint256) {
+        if (timeZone < 0) {
+            uint256 negativeOffset = uint256(int256(timeZone) * -1);
+            return timestamp - (negativeOffset * 1 hours);
+        } else {
+            uint256 positiveOffset = uint256(int256(timeZone));
+            return timestamp + (positiveOffset * 1 hours);
+        }
     }
 
     function calculateLocalTime(uint256 timestamp, int8 timeZone) private pure returns (uint256) {
@@ -223,20 +224,48 @@ contract Dynamic is AutomationCompatibleInterface, ERC721Enumerable, VRFConsumer
         }
     }
 
-    function burn(uint256 tokenId) public onlyDev1OrOperator {
-        require(ownerOf(tokenId) != address(0), "ERC721: burn of nonexistent token");
-        delete weatherTokens[tokenId];
-        delete uriBatches[tokenId];
-        delete tokenIdToRandomNumbers[tokenId];
-        delete tokenTimes[tokenId];
-        delete nextUpdateTime[tokenId];
-        delete nextURIIndex[tokenId];
+    function burnToken(uint256 tokenId) public onlyDev1OrOperator {
+        require(tokenExists(tokenId), "Token ID does not exist");
+        
+        address owner = ownerOf(tokenId);
+
+        weatherTokens[tokenId] = WeatherToken("", "", "", "");
+        tokenBurnTimes[tokenId] = TokenBurnData(0, false);
+        uriBatches[tokenId] = ["", "", "", ""];
+        nextURIIndex[tokenId] = 0;
+        nextUpdateTime[tokenId] = 0;
+
         _burn(tokenId);
-        emit Burned(msg.sender, tokenId);
+        IDynamicV2(secondContractAddress).mint(owner);
     }
 
-    function isBurnable(uint256 tokenId) public view returns (bool) {
-        return block.timestamp >= tokenTimes[tokenId].expirationTime && tokenTimes[tokenId].expirationTime != 0;
+    function getAllTokenBurnTimes() public view returns (address[] memory, uint256[] memory, uint256[] memory) {
+        uint256 tokenCount = totalSupply();
+        uint256 activeTokenCount = 0;
+
+        for (uint256 i = 0; i < tokenCount; i++) {
+            uint256 tokenId = tokenByIndex(i);
+            if (ownerOf(tokenId) != address(0)) {
+                activeTokenCount++;
+            }
+        }
+
+        address[] memory owners = new address[](activeTokenCount);
+        uint256[] memory ids = new uint256[](activeTokenCount);
+        uint256[] memory burnTimes = new uint256[](activeTokenCount);
+
+        uint256 counter = 0;
+        for (uint256 i = 0; i < tokenCount; i++) {
+            uint256 tokenId = tokenByIndex(i);
+            if (ownerOf(tokenId) != address(0)) {
+                owners[counter] = ownerOf(tokenId);
+                ids[counter] = tokenId;
+                burnTimes[counter] = tokenBurnTimes[tokenId].burnTime;
+                counter++;
+            }
+        }
+
+        return (owners, ids, burnTimes);
     }
 
     function tokenURI(uint256 tokenId) public view override returns (string memory) {
@@ -263,5 +292,9 @@ contract Dynamic is AutomationCompatibleInterface, ERC721Enumerable, VRFConsumer
 
     function setUpOperator(address _operator) external onlyDev1OrOperator {
         operator = _operator;
+    }
+
+    function setSecondContractAddress(address _secondContract) external onlyDev1OrOperator {
+        secondContractAddress = _secondContract;
     }
 }

@@ -103,7 +103,7 @@ function Header() {
         maxWidth="md"
         m="auto"
       >
-        <Box className="info-box" p={6} boxShadow="xl" rounded="lg" bg="#4b2c6e">
+        <Box className="info-box" p={6} boxShadow="xl" rounded="lg" bg="#5e5e5e">
             <Select placeholder="Select Animal" className="select-input" value={animal} onChange={(e) => setAnimal(e.target.value)}>
               <option value="Cat">Cat</option>
               <option value="Dog">Dog</option>

@@ -9,6 +9,19 @@ align-items: center;
 color: rgb(0, 0, 0);
 }
 
+.timer-box {
+background-color: #fff;
+padding: 15px;
+border-radius: 10px;
+box-shadow: 0 2px 6px rgba(0, 0, 0, 0.2);
+font-size: 20px;
+color: #ff0000;
+margin-left: 20px;
+display: flex;
+align-items: center;
+justify-content: center;
+}
+
 .image-and-text-container {
 display: flex;
 flex-direction: column;
@@ -70,7 +83,13 @@ padding: 10px;
 }
 
 .image-and-text-container {
-width: 95
+width: 95;
+flex-direction: column;
+}
+
+.timer-box {
+margin-left: 0;
+margin-top: 15px;
 }
 
 .image-box, .text-box {

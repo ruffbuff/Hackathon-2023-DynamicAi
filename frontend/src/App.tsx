@@ -11,6 +11,7 @@ import SideNavBar from './sidenavbar/SideNavBar';
 import Header from './header/Header';
 import Inventory from './pages/Inventory';
 import Collection from './pages/Collection';
+import Collection2 from './pages/Collection2';
 
 function AppContent() {
   const location = useLocation();
@@ -24,6 +25,7 @@ function AppContent() {
         <Route path="/" element={<div></div>} />
         <Route path="/inventory" element={<Inventory />} />
         <Route path="/collection" element={<Collection />} />
+        <Route path="/collection2" element={<Collection2 />} />
       </Routes>
     </>
   );
