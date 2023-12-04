@@ -1,7 +1,8 @@
 // frontend/src/header/Header.tsx
+// frontend/src/header/Header.tsx
 import React, { useState } from 'react';
-import { Box, VStack, Flex, Select, Input, useToast, Text } from '@chakra-ui/react';
-import { ethers } from 'ethers';
+import { Box, VStack, Flex, Select, Input, useToast, Text, Image } from '@chakra-ui/react';
+import { ethers, Contract } from 'ethers';
 import { contracts } from '../sol/contracts';
 import { useConnectionStatus } from "@thirdweb-dev/react";
 import './Header.css';
@@ -13,8 +14,30 @@ function Header() {
   const [name, setName] = useState('');
   const [country, setCountry] = useState('');
   const [style, setStyle] = useState('');
+  const [imageUris, setImageUris] = useState<string[]>([]);
 
   const contractABI = contracts.weatherContract.abi;
+
+  function listenForURIBatchAdded(contract: Contract) {
+    contract.on("URIBatchAdded", async (tokenId: number | string, uris: string[]) => {
+      console.log(`Event Caught - Token ID: ${tokenId}, URIs: ${uris}`);
+
+      const fetchedImageUris = await Promise.all(uris.map(uri => fetchImageFromIPFS(uri)));
+      setImageUris(fetchedImageUris);
+    });
+  }
+
+  async function fetchImageFromIPFS(uri: string) {
+    try {
+      const response = await fetch(uri);
+      const metadata = await response.json();
+      console.log('Metadata image URL:', metadata.image);
+      return metadata.image;
+    } catch (error) {
+      console.error('Error fetching image from IPFS:', error);
+      return '';
+    }
+  }
 
   const mintNFT = async () => {
     try {
@@ -24,7 +47,8 @@ function Header() {
   
       const transaction = await contract.mint(animal, name, country, style);
       await transaction.wait();
-  
+      listenForURIBatchAdded(contract);
+
       toast({
         title: "NFT Minted",
         description: "Your NFT has been minted successfully!",
@@ -61,7 +85,7 @@ function Header() {
         alignItems="center"
         height="100vh"
       >
-        <Box className="info-box" p={6} boxShadow="xl" rounded="lg" bg="#BF40BF">
+        <Box className="info-box" p={6} boxShadow="xl" rounded="lg" bg="#FFA500">
           <Text textColor="white">Open sidebar and Connect Wallet</Text>
         </Box>
       </Flex>
@@ -71,7 +95,7 @@ function Header() {
   if (connectionStatus === "connecting") {
     return (
       <Flex className="header-container" justifyContent="center" alignItems="center" height="100vh">
-        <Box className="info-box" p={6} boxShadow="xl" rounded="lg" bg="gray.50">
+        <Box className="info-box" p={6} boxShadow="xl" rounded="lg" bg="#FFA500">
           <p>Connecting to wallet...</p>
         </Box>
       </Flex>
@@ -81,7 +105,7 @@ function Header() {
   if (connectionStatus === "unknown") {
     return (
       <Flex className="header-container" justifyContent="center" alignItems="center" height="100vh">
-        <Box className="info-box" p={6} boxShadow="xl" rounded="lg" bg="#4b2c6e">
+        <Box className="info-box" p={6} boxShadow="xl" rounded="lg" bg="#FFA500">
           <p>Loading wallet status...</p>
         </Box>
       </Flex>
@@ -92,7 +116,7 @@ function Header() {
     <Flex
       className="header-container"
       justifyContent="center"
-      alignItems="center"
+      alignItems="column"
       height="100vh"
     >
       <VStack
@@ -101,32 +125,35 @@ function Header() {
         className="content-box"
         width="full"
         maxWidth="md"
-        m="auto"
+        mb="4"
       >
-        <Box className="info-box" p={6} boxShadow="xl" rounded="lg" bg="#5e5e5e">
-            <Select placeholder="Select Animal" className="select-input" value={animal} onChange={(e) => setAnimal(e.target.value)}>
+        <Box className="info-box" p={6} boxShadow="xl" textColor="#FFA500" rounded="lg" bg="#5e5e5e">
+            <Select placeholder="Select Animal" textColor="#FFA500" className="select-input" value={animal} onChange={(e) => setAnimal(e.target.value)}>
               <option value="Cat">Cat</option>
               <option value="Dog">Dog</option>
               <option value="Horse">Horse</option>
               <option value="Fox">Fox</option>
               <option value="Turtle">Turtle</option>
             </Select>
-            <Select placeholder="Select Country" className="select-input" value={country} onChange={(e) => setCountry(e.target.value)}>
+            <Select placeholder="Select Country" textColor="#FFA500" className="select-input" value={country} onChange={(e) => setCountry(e.target.value)}>
               <option value="Estonia">Estonia</option>
               <option value="Bangladesh">Bangladesh</option>
               <option value="Poland">Poland</option>
               <option value="SaudiArabia">Saudi Arabia</option>
               <option value="Japan">Japan</option>
             </Select>
-            <Select placeholder="Select Style" className="select-input" value={style} onChange={(e) => setStyle(e.target.value)}>
+            <Select placeholder="Select Style" textColor="#FFA500" className="select-input" value={style} onChange={(e) => setStyle(e.target.value)}>
               <option value="Cartoon">Cartoon</option>
-              <option value="Free">Free</option>
+              <option value="Nature">Nature</option>
+              <option value="Surreal">Surreal</option>
+              <option value="Pokemon">Pokemon</option>
               <option value="Minecraft">Minecraft</option>
               <option value="Retro">Retro</option>
               <option value="Cyberpunk">Cyberpunk</option>
             </Select>
             <Input
               className="input-input"
+              textColor="#FFA500"
               value={name}
               onChange={(e) => setName(e.target.value)}
               placeholder="Name"
@@ -135,8 +162,17 @@ function Header() {
             <button onClick={mintNFT} className="mint-btn">
               Free mint
             </button>
-          </Box>
+        </Box>
         </VStack>
+        <Flex
+          wrap="wrap"
+          justifyContent="center"
+          width="full"
+        >
+          {imageUris.map((uri, index) => (
+            <Image key={index} src={uri} alt={`Dynamic NFT Image ${index + 1}`} boxSize="200px" m="2" />
+          ))}
+        </Flex>
       </Flex>
     );
 }

@@ -46,13 +46,16 @@ function Collection() {
 
   const fetchNFTs = useCallback(async () => {
     try {
+      const provider = new ethers.providers.Web3Provider(window.ethereum);
+      const signer = provider.getSigner();
+      const userAddress = await signer.getAddress();
       const burnTimes = await fetchBurnTimes();
 
       if (burnTimes.length === 0) {
         return;
       }
 
-      const response = await fetch('https://polygon-mumbai.g.alchemy.com/nft/v3/DquPqd0BkVZtmd5HQkefL0hbs_SLMLfX/getNFTsForCollection?contractAddress=0xF894116408b1929794233C4B9EF866b6420bB851&withMetadata=true', {
+      const response = await fetch('https://polygon-mumbai.g.alchemy.com/nft/v3/DquPqd0BkVZtmd5HQkefL0hbs_SLMLfX/getNFTsForCollection?contractAddress=0x302475474c38AA12e26fC19C49Fdc4E7F8592dEE&withMetadata=true', {
         method: 'GET',
         headers: { 'accept': 'application/json' }
       });
@@ -63,13 +66,13 @@ function Collection() {
         burnTime: burnTimes[index],
         holder: nft.owner
       }))
-      .filter((nft: NFT) => nft.holder && nft.holder !== '0x0000000000000000000000000000000000000000' && nft.holder.toLowerCase() !== 'dead');
+      .filter((nft: NFT) => nft.holder && nft.holder.toLowerCase() === userAddress.toLowerCase());
 
       setNfts(fetchedNfts);
     } catch (error) {
       console.error('Error fetching NFTs:', error);
     }
-  }, []);  
+  }, []);
 
   useEffect(() => {
     fetchNFTs().catch(console.error);
