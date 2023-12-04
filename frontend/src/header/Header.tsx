@@ -1,7 +1,7 @@
 // frontend/src/header/Header.tsx
 // frontend/src/header/Header.tsx
 import React, { useState } from 'react';
-import { Box, VStack, Flex, Select, Input, useToast, Text, Image } from '@chakra-ui/react';
+import { Box, VStack, Flex, Select, Input, useToast, Text, Image, CircularProgress } from '@chakra-ui/react';
 import { ethers, Contract } from 'ethers';
 import { contracts } from '../sol/contracts';
 import { useConnectionStatus } from "@thirdweb-dev/react";
@@ -15,15 +15,16 @@ function Header() {
   const [country, setCountry] = useState('');
   const [style, setStyle] = useState('');
   const [imageUris, setImageUris] = useState<string[]>([]);
+  const [isLoading, setIsLoading] = useState(false);
 
   const contractABI = contracts.weatherContract.abi;
 
   function listenForURIBatchAdded(contract: Contract) {
     contract.on("URIBatchAdded", async (tokenId: number | string, uris: string[]) => {
       console.log(`Event Caught - Token ID: ${tokenId}, URIs: ${uris}`);
-
       const fetchedImageUris = await Promise.all(uris.map(uri => fetchImageFromIPFS(uri)));
       setImageUris(fetchedImageUris);
+      setIsLoading(false); // Загрузка завершена
     });
   }
 
@@ -47,6 +48,7 @@ function Header() {
   
       const transaction = await contract.mint(animal, name, country, style);
       await transaction.wait();
+      setIsLoading(true);
       listenForURIBatchAdded(contract);
 
       toast({
@@ -119,6 +121,9 @@ function Header() {
       alignItems="column"
       height="100vh"
     >
+      {isLoading && (
+        <CircularProgress isIndeterminate color="#FFA500" mt="4" />
+      )}
       <VStack
         spacing={4}
         align="stretch"
@@ -127,6 +132,15 @@ function Header() {
         maxWidth="md"
         mb="4"
       >
+        <Flex
+          wrap="wrap"
+          justifyContent="center"
+          width="full"
+        >
+          {imageUris.map((uri, index) => (
+            <Image key={index} src={uri} alt={`Dynamic NFT Image ${index + 1}`} boxSize="200px" m="2" />
+          ))}
+        </Flex>
         <Box className="info-box" p={6} boxShadow="xl" textColor="#FFA500" rounded="lg" bg="#5e5e5e">
             <Select placeholder="Select Animal" textColor="#FFA500" className="select-input" value={animal} onChange={(e) => setAnimal(e.target.value)}>
               <option value="Cat">Cat</option>
@@ -164,15 +178,6 @@ function Header() {
             </button>
         </Box>
         </VStack>
-        <Flex
-          wrap="wrap"
-          justifyContent="center"
-          width="full"
-        >
-          {imageUris.map((uri, index) => (
-            <Image key={index} src={uri} alt={`Dynamic NFT Image ${index + 1}`} boxSize="200px" m="2" />
-          ))}
-        </Flex>
       </Flex>
     );
 }
