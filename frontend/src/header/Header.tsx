@@ -1,5 +1,4 @@
 // frontend/src/header/Header.tsx
-// frontend/src/header/Header.tsx
 import React, { useState } from 'react';
 import { Box, VStack, Flex, Select, Input, useToast, Text, Image, CircularProgress } from '@chakra-ui/react';
 import { ethers, Contract } from 'ethers';
@@ -20,24 +19,24 @@ function Header() {
   const contractABI = contracts.weatherContract.abi;
 
   function listenForURIBatchAdded(contract: Contract) {
-    contract.on("URIBatchAdded", async (tokenId: number | string, uris: string[]) => {
-      console.log(`Event Caught - Token ID: ${tokenId}, URIs: ${uris}`);
-      const fetchedImageUris = await Promise.all(uris.map(uri => fetchImageFromIPFS(uri)));
-      setImageUris(fetchedImageUris);
-      setIsLoading(false); // Загрузка завершена
+    contract.on("URIBatchAdded", async (tokenId, uris, burnInSeconds) => {
+      console.log(`Event Caught - Token ID: ${tokenId}, URIs: ${uris}, Burn Time: ${burnInSeconds}`);
+      setIsLoading(true);
+  
+      try {
+        const images = await Promise.all(uris.map(async (uri: string) => {
+          const response = await fetch(uri);
+          const metadata = await response.json();
+          return metadata.image;
+        }));
+  
+        setImageUris(images);
+      } catch (error) {
+        console.error('Ошибка при извлечении изображений из IPFS:', error);
+      }
+  
+      setIsLoading(false);
     });
-  }
-
-  async function fetchImageFromIPFS(uri: string) {
-    try {
-      const response = await fetch(uri);
-      const metadata = await response.json();
-      console.log('Metadata image URL:', metadata.image);
-      return metadata.image;
-    } catch (error) {
-      console.error('Error fetching image from IPFS:', error);
-      return '';
-    }
   }
 
   const mintNFT = async () => {
@@ -121,9 +120,6 @@ function Header() {
       alignItems="column"
       height="100vh"
     >
-      {isLoading && (
-        <CircularProgress isIndeterminate color="#FFA500" mt="4" />
-      )}
       <VStack
         spacing={4}
         align="stretch"
@@ -132,15 +128,25 @@ function Header() {
         maxWidth="md"
         mb="4"
       >
-        <Flex
-          wrap="wrap"
+      {isLoading && (
+        <CircularProgress
+          isIndeterminate
+          color="#FFA500"
           justifyContent="center"
-          width="full"
-        >
-          {imageUris.map((uri, index) => (
-            <Image key={index} src={uri} alt={`Dynamic NFT Image ${index + 1}`} boxSize="200px" m="2" />
-          ))}
-        </Flex>
+          alignContent="center"
+          align-items="center"
+          mt="4"
+        />
+      )}
+      <Flex
+        wrap="wrap"
+        justifyContent="center"
+        width="full"
+      >
+        {imageUris.map((uri, index) => (
+          <Image key={index} src={uri} alt={`Dynamic NFT Image ${index + 1}`} boxSize="200px" m="2" />
+        ))}
+      </Flex>
         <Box className="info-box" p={6} boxShadow="xl" textColor="#FFA500" rounded="lg" bg="#5e5e5e">
             <Select placeholder="Select Animal" textColor="#FFA500" className="select-input" value={animal} onChange={(e) => setAnimal(e.target.value)}>
               <option value="Cat">Cat</option>
