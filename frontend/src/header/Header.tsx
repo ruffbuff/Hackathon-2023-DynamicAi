@@ -15,8 +15,13 @@ function Header() {
   const [style, setStyle] = useState('');
   const [imageUris, setImageUris] = useState<string[]>([]);
   const [isLoading, setIsLoading] = useState(false);
+  const [showForm, setShowForm] = useState(true);
 
   const contractABI = contracts.weatherContract.abi;
+
+  const toggleForm = () => {
+    setShowForm(!showForm);
+  };
 
   function listenForURIBatchAdded(contract: Contract) {
     contract.on("URIBatchAdded", async (tokenId, uris, burnInSeconds) => {
@@ -117,36 +122,18 @@ function Header() {
     <Flex
       className="header-container"
       justifyContent="center"
-      alignItems="column"
+      alignItems="center"
       height="100vh"
     >
-      <VStack
-        spacing={4}
-        align="stretch"
-        className="content-box"
-        width="full"
-        maxWidth="md"
-        mb="4"
-      >
-      {isLoading && (
+      {isLoading ? (
         <CircularProgress
           isIndeterminate
           color="#FFA500"
           justifyContent="center"
           alignContent="center"
-          align-items="center"
           mt="4"
         />
-      )}
-      <Flex
-        wrap="wrap"
-        justifyContent="center"
-        width="full"
-      >
-        {imageUris.map((uri, index) => (
-          <Image key={index} src={uri} alt={`Dynamic NFT Image ${index + 1}`} boxSize="200px" m="2" />
-        ))}
-      </Flex>
+      ) : showForm ? (
         <Box className="info-box" p={6} boxShadow="xl" textColor="#FFA500" rounded="lg" bg="#5e5e5e">
             <Select placeholder="Select Animal" textColor="#FFA500" className="select-input" value={animal} onChange={(e) => setAnimal(e.target.value)}>
               <option value="Cat">Cat</option>
@@ -154,6 +141,7 @@ function Header() {
               <option value="Horse">Horse</option>
               <option value="Fox">Fox</option>
               <option value="Turtle">Turtle</option>
+              <option value="Dragon">Dragon</option>
             </Select>
             <Select placeholder="Select Country" textColor="#FFA500" className="select-input" value={country} onChange={(e) => setCountry(e.target.value)}>
               <option value="Estonia">Estonia</option>
@@ -179,13 +167,39 @@ function Header() {
               placeholder="Name"
               mb={3}
             />
-            <button onClick={mintNFT} className="mint-btn">
-              Free mint
-            </button>
+          <button onClick={mintNFT} className="mint-btn">
+            Free mint
+          </button>
+          <button onClick={toggleForm} className="mint-btn">
+            View Images
+          </button>
         </Box>
+      ) : (
+        <VStack
+          spacing={4}
+          align="stretch"
+          className="content-box"
+          width="full"
+          maxWidth="md"
+        >
+          <Flex
+            wrap="wrap"
+            justifyContent="center"
+            width="full"
+          >
+            {imageUris.map((uri, index) => (
+              <Image key={index} src={uri} alt={`Dynamic NFT Image ${index + 1}`} boxSize="200px" m="2" />
+            ))}
+          </Flex>
+          <Flex justifyContent="center">
+            <button onClick={toggleForm} className="mint-btn">
+              Mint Another
+            </button>
+          </Flex>
         </VStack>
-      </Flex>
-    );
+      )}
+    </Flex>
+  );
 }
 
 export default Header;

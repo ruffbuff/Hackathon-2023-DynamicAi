@@ -12,7 +12,7 @@ function Collection2() {
 
   const fetchNFTs = async () => {
     try {
-      const response = await fetch('https://polygon-mumbai.g.alchemy.com/nft/v3/DquPqd0BkVZtmd5HQkefL0hbs_SLMLfX/getNFTsForCollection?contractAddress=0x4D1B4437Dd8166D073e94112749C456bC176741C&withMetadata=true', {
+      const response = await fetch('https://polygon-mumbai.g.alchemy.com/nft/v3/DquPqd0BkVZtmd5HQkefL0hbs_SLMLfX/getNFTsForCollection?contractAddress=0x0fc0fAC7857c85908F74909B0eF84Bd08Def1f9B&withMetadata=true', {
         method: 'GET',
         headers: { 'accept': 'application/json' }
       });

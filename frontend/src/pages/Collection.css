@@ -1,80 +1,60 @@
-/* Collection.css */
 body {
-background-color: #424242;
+  background-color: #424242;
 }
 
 .collection-container {
-display: flex;
-flex-wrap: wrap;
-justify-content: center;
-gap: 20px;
-padding: 20px;
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 20px;
+  padding: 20px;
 }
 
 .nft-card {
-width: 200px;
-position: relative;
-border: 1px solid #ddd;
-border-radius: 10px;
-overflow: hidden;
-box-shadow: 0 2px 4px rgba(0, 0, 0, 0.15);
-transition: transform 0.3s ease-in-out;
+  width: 200px;
+  border-radius: 10px;
+  overflow: hidden;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.15);
+  transition: transform 0.3s ease-in-out;
+}
+
+.nft-info {
+  background-color: #FFDEAD;
+  padding: 10px;
+  text-align: center;
+}
+
+.nft-name {
+  font-weight: bold;
 }
 
 .nft-timer {
-  display: none;
-  position: absolute;
-  bottom: 0;
-  width: 100%;
-  background-color: rgba(0, 0, 0, 0.75);
-  color: white;
-  text-align: center;
-  padding: 5px;
-}
-
-.nft-card:hover .nft-timer {
-  display: block;
+  color: #ff0000;
+  margin-top: 5px;
 }
 
 .nft-card img {
-width: 100%;
-height: auto;
-display: block;
-}
-
-.nft-name {
-padding: 10px;
-text-align: center;
-background-color: rgba(255, 255, 255, 0.9);
-border-top: 1px solid #ddd;
-}
-
-.nft-card:hover .timer {
-display: block;
+  width: 100%;
+  height: auto;
+  display: block;
 }
 
 .nft-card:hover {
-transform: translateY(-5px);
-box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
+  transform: translateY(-5px);
 }
 
 @media (max-width: 600px) {
-.nft-card {
-width: 90%;
-}
+  .nft-card {
+    width: 90%;
+  }
 
-.nft-name {
-font-size: 0.8rem;
-padding: 5px;
-}
-
-.collection-container {
-gap: 10px;
-}
+  .nft-name, .nft-timer {
+    font-size: 0.8rem;
+  }
 }
 
 @media (max-width: 400px) {
-.nft-card {
-width: 100%;
-}
+  .nft-card {
+    width: 100%;
+  }
 }

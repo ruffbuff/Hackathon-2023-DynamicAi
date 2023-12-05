@@ -95,7 +95,7 @@ function Inventory() {
     const minutes = Math.floor((timeLeft % 3600) / 60);
     const seconds = timeLeft % 60;
 
-    return `${hours}h ${minutes}m ${seconds}s`;
+    return `${hours}h ${minutes}m ${seconds}s Until change`;
   };
 
   const formatVrfValue = (value: any) => {
@@ -111,26 +111,46 @@ function Inventory() {
     return value.toString();
   };  
 
+  const getUriBatch = async (tokenId: string, index: number) => {
+    const provider = new ethers.providers.Web3Provider(window.ethereum);
+    const contract = new ethers.Contract(contracts.weatherContract.address, contracts.weatherContract.abi, provider);
+
+    try {
+      const uri = await contract.uriBatches(tokenId, index);
+      console.log(`URI for token ${tokenId}, index ${index}:`, uri);
+    } catch (error) {
+      console.error('Error fetching URI:', error);
+    }
+  };
+
   return (
     <Box className="main-container">
-      <Box className="image-and-text-container">
+      <Box className="image-and-text-container" style={selectedNft ? {} : { justifyContent: 'center' }}>
         {selectedNft ? (
           <>
             <Box className="image-box">
               <Image
+                borderRadius="10px"
                 src={selectedNft.image.cachedUrl}
                 alt={selectedNft.name}
                 className={imageClicked ? "larger-image" : "thumbnail-image"}
               />
             </Box>
+            <Box className="uri-buttons">
+              {[0, 1, 2, 3].map((index) => (
+                <button key={index} onClick={() => getUriBatch(selectedNft.tokenId, index)}>
+                  URI {index}
+                </button>
+              ))}
+            </Box>
             <Box className="timer-box">
-              <Text>
+              <Text mt="10px">
                 {nextUpdateTime ? convertTimestampToTime(nextUpdateTime) : "Loading..."}
               </Text>
             </Box>
             <Box className="text-box">
-              <Text fontSize="2xl">{selectedNft.name}</Text>
-              <Text>{selectedNft.description}</Text>
+              <Text fontSize="2xl">Name: {selectedNft.name}</Text>
+              <Text>Description: {selectedNft.description}</Text>
               <Text>Token ID: {selectedNft.tokenId}</Text>
               <Text>Time of Day: {selectedNft.attributes.find(attr => attr.trait_type === "Time_of_day")?.value}</Text>
               <Text>Animal: {selectedNft.attributes.find(attr => attr.trait_type === "Animal")?.value}</Text>
@@ -141,15 +161,16 @@ function Inventory() {
             </Box>
           </>
         ) : (
-          <Text textColor="white">Select an NFT to view details</Text>
+          <Text className="select-nft-prompt">Select an NFT to view details</Text>
         )}
       </Box>
 
       <Box className="nft-gallery-container">
         <Box className="nft-gallery">
           {nfts.map((nft, index) => (
-            <Box key={index} onClick={() => handleNftClick(nft)} cursor="pointer" className="nft-slot">
+            <Box key={index} onClick={() => handleNftClick(nft)} className="nft-slot">
               <Image
+                borderRadius="10px"
                 src={nft.image.cachedUrl}
                 alt={`NFT ${index}`}
                 className="thumbnail-image"

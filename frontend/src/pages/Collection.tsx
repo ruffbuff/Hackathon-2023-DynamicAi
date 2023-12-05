@@ -86,14 +86,15 @@ function Collection() {
       {nfts.map((nft, index) => (
         <div key={index} className="nft-card">
           <img src={nft.image.cachedUrl} alt={`NFT ${nft.name}`} />
-          <div className="nft-name">{nft.name}</div>
-          <div className="nft-timer">
-            {nft.burnTime ? calculateRemainingTime(nft.burnTime) : 'No burn time set'}
+          <div className="nft-info">
+            <div className="nft-name">{nft.name}</div>
+            <div className="nft-timer">{nft.burnTime ? nft.remainingTime : 'No burn time set'}</div>
           </div>
         </div>
       ))}
     </div>
   );
+  
 }
 
 export default Collection;
