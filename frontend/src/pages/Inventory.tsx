@@ -26,6 +26,7 @@ function Inventory() {
   const [imageClicked, setImageClicked] = useState(false);
   const [nextUpdateTime, setNextUpdateTime] = useState<number>(0);
   const [currentTime, setCurrentTime] = useState(Math.floor(Date.now() / 1000));
+  const [uriIndex, setUriIndex] = useState(0);
 
   useEffect(() => {
     if (address) {
@@ -114,13 +115,39 @@ function Inventory() {
   const getUriBatch = async (tokenId: string, index: number) => {
     const provider = new ethers.providers.Web3Provider(window.ethereum);
     const contract = new ethers.Contract(contracts.weatherContract.address, contracts.weatherContract.abi, provider);
-
+  
     try {
       const uri = await contract.uriBatches(tokenId, index);
-      console.log(`URI for token ${tokenId}, index ${index}:`, uri);
+      const response = await fetch(uri);
+      const metadata = await response.json();
+  
+      if (selectedNft) {
+        setSelectedNft({
+          ...selectedNft,
+          image: { cachedUrl: metadata.image },
+          name: metadata.name,
+          tokenId: selectedNft.tokenId,
+          description: selectedNft.description,
+          attributes: selectedNft.attributes
+        });
+      }
     } catch (error) {
       console.error('Error fetching URI:', error);
     }
+  };  
+
+  const handlePrevUri = () => {
+    if (!selectedNft) return;
+    const newIndex = uriIndex === 0 ? 3 : uriIndex - 1;
+    setUriIndex(newIndex);
+    getUriBatch(selectedNft.tokenId, newIndex);
+  };
+
+  const handleNextUri = () => {
+    if (!selectedNft) return;
+    const newIndex = uriIndex === 3 ? 0 : uriIndex + 1;
+    setUriIndex(newIndex);
+    getUriBatch(selectedNft.tokenId, newIndex);
   };
 
   return (
@@ -137,11 +164,8 @@ function Inventory() {
               />
             </Box>
             <Box className="uri-buttons">
-              {[0, 1, 2, 3].map((index) => (
-                <button key={index} onClick={() => getUriBatch(selectedNft.tokenId, index)}>
-                  URI {index}
-                </button>
-              ))}
+              <button onClick={handlePrevUri}>&lt;</button>
+              <button onClick={handleNextUri}>&gt;</button>
             </Box>
             <Box className="timer-box">
               <Text mt="10px">
