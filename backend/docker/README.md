@@ -10,7 +10,7 @@ docker run -it -d \
     -v ${PWD}:/usr/src/app \
     --restart=always \
     --name dynnft \
-    ${LOGIN}/${NAME}:${TAG}
+    ambientiumim/dynnft:3
 
 Or just use 'make' 
 
