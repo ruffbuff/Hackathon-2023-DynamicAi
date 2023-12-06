@@ -1,10 +1,15 @@
-// src/pages/Collection2.tsx
 import React, { useState, useEffect } from 'react';
 import './Collection2.css';
+
+interface Attribute {
+  trait_type: string;
+  value: string | number;
+}
 
 interface NFT {
   name: string;
   image: { cachedUrl: string };
+  attributes: Attribute[];
 }
 
 function Collection2() {
@@ -17,9 +22,11 @@ function Collection2() {
         headers: { 'accept': 'application/json' }
       });
       const data = await response.json();
+      // console.log('data:', data);
       const fetchedNfts = data.nfts.map((nft: any) => ({
         name: nft.name,
-        image: nft.image
+        image: nft.image,
+        attributes: nft.raw.metadata.attributes
       }));
       setNfts(fetchedNfts);
     } catch (error) {
@@ -37,6 +44,13 @@ function Collection2() {
         <div key={index} className="nft-card">
           <img src={nft.image.cachedUrl} alt={`NFT ${index}`} />
           <div className="nft-name">{nft.name}</div>
+          <div className="nft-attributes">
+            {nft.attributes.map((attribute, attrIndex) => (
+              <div key={attrIndex} className="nft-attribute">
+                <strong>{attribute.trait_type}:</strong> {attribute.value}
+              </div>
+            ))}
+          </div>
         </div>
       ))}
     </div>

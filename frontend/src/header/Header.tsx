@@ -24,25 +24,46 @@ function Header() {
   };
 
   function listenForURIBatchAdded(contract: Contract) {
-    contract.on("URIBatchAdded", async (tokenId, uris, burnInSeconds) => {
+    contract.on("URIBatchAdded", async (tokenId: string, uris: string[], burnInSeconds: number) => {
       console.log(`Event Caught - Token ID: ${tokenId}, URIs: ${uris}, Burn Time: ${burnInSeconds}`);
       setIsLoading(true);
   
       try {
-        const images = await Promise.all(uris.map(async (uri: string) => {
-          const response = await fetch(uri);
-          const metadata = await response.json();
-          return metadata.image;
+        const images = await Promise.all(uris.map(async (uri) => {
+          const controller = new AbortController();
+          const timeoutId = setTimeout(() => controller.abort(), 10000);
+  
+          try {
+            const response = await fetch(uri, { signal: controller.signal });
+            clearTimeout(timeoutId);
+  
+            if (!response.ok) {
+              console.error(`Failed to fetch URI: ${uri}, Status: ${response.status}`);
+              return '';
+            }
+  
+            const metadata = await response.json();
+            console.log(`Image URL for Token ID ${tokenId}, URI ${uri}: ${metadata.image}`);
+            return metadata.image;
+          } catch (error) {
+            if (error instanceof Error && error.name === 'AbortError') {
+              console.error(`Request to URI: ${uri} timed out`);
+            } else {
+              console.error(`Error fetching URI: ${uri}`, error instanceof Error ? error.message : error);
+            }
+            clearTimeout(timeoutId);
+            return '';
+          }
         }));
   
-        setImageUris(images);
+        setImageUris(images.filter(uri => uri !== ''));
       } catch (error) {
-        console.error('Ошибка при извлечении изображений из IPFS:', error);
+        console.error('Error fetching images from URIs:', error instanceof Error ? error.message : error);
       }
   
       setIsLoading(false);
     });
-  }
+  }  
 
   const mintNFT = async () => {
     try {
@@ -168,7 +189,7 @@ function Header() {
               mb={3}
             />
           <button onClick={mintNFT} className="mint-btn">
-            Free mint
+            Mint DynamicAi
           </button>
           <button onClick={toggleForm} className="mint-btn">
             View Images

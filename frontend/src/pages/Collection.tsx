@@ -49,7 +49,7 @@ function Collection() {
           tokenBurnTimesMap.set(tokenId.toString(), burnTimes[index].toNumber());
         });
 
-        const response = await fetch('https://polygon-mumbai.g.alchemy.com/nft/v3/DquPqd0BkVZtmd5HQkefL0hbs_SLMLfX/getNFTsForCollection?contractAddress=0x3DE661c7cDc964be6E584710d5627446f4770142&withMetadata=true', {
+        const response = await fetch(`https://polygon-mumbai.g.alchemy.com/nft/v3/DquPqd0BkVZtmd5HQkefL0hbs_SLMLfX/getNFTsForCollection?contractAddress=${contracts.weatherContract.address}&withMetadata=true`, {
           method: 'GET',
           headers: { 'accept': 'application/json' }
         });

@@ -4,7 +4,7 @@ import { ethers } from 'ethers';
 import { contracts } from '../sol/contracts';
 import { useAddress } from "@thirdweb-dev/react";
 import './Inventory.css';
-import { Image, Box, Text } from '@chakra-ui/react';
+import { Image, Box, Text, Skeleton } from '@chakra-ui/react';
 
 interface NFT {
   tokenId: string;
@@ -17,27 +17,33 @@ interface NFT {
   image: {
     cachedUrl: string;
   };
+  uris?: string[];
 }
 
 function Inventory() {
   const address = useAddress();
   const [nfts, setNfts] = useState<NFT[]>([]);
   const [selectedNft, setSelectedNft] = useState<NFT | null>(null);
+  
   const [imageClicked, setImageClicked] = useState(false);
+  
   const [nextUpdateTime, setNextUpdateTime] = useState<number>(0);
   const [currentTime, setCurrentTime] = useState(Math.floor(Date.now() / 1000));
+
   const [uriIndex, setUriIndex] = useState(0);
+  const [initialUri, setInitialUri] = useState<string>('');
+
+  const [isImageLoading, setIsImageLoading] = useState(true);
 
   useEffect(() => {
     if (address) {
       const fetchNFTs = async () => {
         const options = { method: 'GET', headers: { accept: 'application/json' } };
-        const url = `https://polygon-mumbai.g.alchemy.com/nft/v3/DquPqd0BkVZtmd5HQkefL0hbs_SLMLfX/getNFTsForOwner?owner=${address}&contractAddresses[]=0x3DE661c7cDc964be6E584710d5627446f4770142&withMetadata=true&pageSize=100`;
+        const url = `https://polygon-mumbai.g.alchemy.com/nft/v3/DquPqd0BkVZtmd5HQkefL0hbs_SLMLfX/getNFTsForOwner?owner=${address}&contractAddresses[]=${contracts.weatherContract.address}&withMetadata=true&pageSize=100`;
   
         try {
           const response = await fetch(url, options);
           const data = await response.json();
-          console.log(data);
           const fetchedNfts = data.ownedNfts.map((nft: any) => ({
             tokenId: nft.tokenId,
             name: nft.name,
@@ -78,12 +84,13 @@ function Inventory() {
   };
 
   const handleNftClick = async (nft: NFT) => {
-    setSelectedNft(nft);
     setImageClicked(true);
-
+    setInitialUri(nft.image.cachedUrl);
     const timestamp = await getNextUpdateTime(nft.tokenId);
     setNextUpdateTime(timestamp);
-  };
+    await getUriBatch(nft.tokenId, uriIndex);
+    setSelectedNft(nft);
+  };  
 
   const convertTimestampToTime = (timestamp: number) => {
     const timeLeft = timestamp - currentTime;
@@ -110,22 +117,55 @@ function Inventory() {
       }).join(', ');
     }
     return value.toString();
-  };  
+  };
+
+  useEffect(() => {
+    const cachedUris = localStorage.getItem('cachedUris');
+    if (cachedUris) {
+      setNfts(JSON.parse(cachedUris));
+    }
+  }, []);
+
+  useEffect(() => {
+    if (nfts.length > 0) {
+      localStorage.setItem('cachedUris', JSON.stringify(nfts));
+    }
+  }, [nfts]);
 
   const getUriBatch = async (tokenId: string, index: number) => {
+    setIsImageLoading(true);
     const provider = new ethers.providers.Web3Provider(window.ethereum);
     const contract = new ethers.Contract(contracts.weatherContract.address, contracts.weatherContract.abi, provider);
   
     try {
       const uri = await contract.uriBatches(tokenId, index);
-      const response = await fetch(uri);
-      const metadata = await response.json();
+      const cachedNfts: NFT[] = JSON.parse(localStorage.getItem('cachedUris') || '[]');
+      const cachedNft = cachedNfts.find((nft: NFT) => nft.tokenId === tokenId);
+  
+      let imageUri: string = '';
+      if (cachedNft && cachedNft.uris && cachedNft.uris[index]) {
+        imageUri = cachedNft.uris[index];
+      } else {
+        const response = await fetch(uri);
+        const metadata = await response.json();
+        imageUri = metadata.image;
+  
+        const newCachedNfts = cachedNfts.map((nft: NFT) => {
+          if (nft.tokenId === tokenId) {
+            const newUris = nft.uris ? [...nft.uris] : [];
+            newUris[index] = imageUri;
+            return { ...nft, uris: newUris };
+          }
+          return nft;
+        });
+        localStorage.setItem('cachedUris', JSON.stringify(newCachedNfts));
+      }
   
       if (selectedNft) {
         setSelectedNft({
           ...selectedNft,
-          image: { cachedUrl: metadata.image },
-          name: metadata.name,
+          image: { cachedUrl: imageUri },
+          name: selectedNft.name,
           tokenId: selectedNft.tokenId,
           description: selectedNft.description,
           attributes: selectedNft.attributes
@@ -133,19 +173,27 @@ function Inventory() {
       }
     } catch (error) {
       console.error('Error fetching URI:', error);
+    } finally {
+      setIsImageLoading(false);
     }
-  };  
+  };   
 
   const handlePrevUri = () => {
     if (!selectedNft) return;
-    const newIndex = uriIndex === 0 ? 3 : uriIndex - 1;
+    let newIndex = uriIndex === 0 ? 3 : uriIndex - 1;
+    while (selectedNft.attributes[newIndex].value === initialUri && newIndex !== uriIndex) {
+      newIndex = newIndex === 0 ? 3 : newIndex - 1;
+    }
     setUriIndex(newIndex);
     getUriBatch(selectedNft.tokenId, newIndex);
   };
 
   const handleNextUri = () => {
     if (!selectedNft) return;
-    const newIndex = uriIndex === 3 ? 0 : uriIndex + 1;
+    let newIndex = uriIndex === 3 ? 0 : uriIndex + 1;
+    while (selectedNft.attributes[newIndex].value === initialUri && newIndex !== uriIndex) {
+      newIndex = newIndex === 3 ? 0 : newIndex + 1;
+    }
     setUriIndex(newIndex);
     getUriBatch(selectedNft.tokenId, newIndex);
   };
@@ -156,12 +204,16 @@ function Inventory() {
         {selectedNft ? (
           <>
             <Box className="image-box">
-              <Image
-                borderRadius="10px"
-                src={selectedNft.image.cachedUrl}
-                alt={selectedNft.name}
-                className={imageClicked ? "larger-image" : "thumbnail-image"}
-              />
+              {isImageLoading ? (
+                <Skeleton height="200px" width="200px" />
+              ) : (
+                <Image
+                  borderRadius="10px"
+                  src={selectedNft.image.cachedUrl}
+                  alt={selectedNft.name}
+                  className={imageClicked ? "larger-image" : "thumbnail-image"}
+                />
+              )}
             </Box>
             <Box className="uri-buttons">
               <button onClick={handlePrevUri}>&lt;</button>

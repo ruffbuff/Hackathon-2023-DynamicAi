@@ -5,3 +5,9 @@ justify-content: center;
 gap: 20px;
 padding: 20px;
 }
+
+.nft-name {
+padding: 10px;
+background-color: #FFDEAD;
+text-align: center;
+}
