@@ -13,6 +13,14 @@ R: 0x5CEe0e6D261dA886aa4F02FB47f45E1E9fa4991b
 A: 0x5F82dE5FCf2EacD3dD3F45ec671B4870ebb60954
 ```
 
+## Demo:
+- [VRF subscription](https://vrf.chain.link/mumbai/6385) :game_die:
+- [Automation](https://automation.chain.link/mumbai/23104568745556896409274835808211757805780096452881858554117652458904576237493) :joystick:
+- [Data Feeds: BTC/USD, Mumbai Polygon](https://mumbai.polygonscan.com/address/0x007A22900a3B98143368Bd5906f8E17e9867581b) :chart:
+- [DynamicAi First NFT Collection](https://mumbai.polygonscan.com/address/0xc1ba35D68B3B951FFaDbC264041A0868B70B01c0) :art:
+- [DynamicAi Final NFT Collection](https://mumbai.polygonscan.com/address/0x71708CFC7c8dBcDeaC10043C9e50Bf7d22222037) :framed_picture:
+- [Demo Vercel Dapp](https://dynamic-ai.vercel.app/) :tada:
+
 ## Supported by:
 - [React](https://react.dev/)
 - [Node.js](https://nodejs.org/)
@@ -29,14 +37,6 @@ A: 0x5F82dE5FCf2EacD3dD3F45ec671B4870ebb60954
 - [Openzeppelin](https://www.openzeppelin.com/)
 - [OpenAi](https://openai.com/)
 - [Chainlink Hackathon](https://chain.link/hackathon?utm_medium=referral&utm_source=chainlink&utm_campaign=constellation-hackathon&agid=0s477xp3xv6v)
-
-## Demo:
-- [VRF subscription](https://vrf.chain.link/mumbai/6385):game_die:
-- [Automation](https://automation.chain.link/mumbai/23104568745556896409274835808211757805780096452881858554117652458904576237493)
-- [Data Feeds: BTC/USD, Mumbai Polygon](https://mumbai.polygonscan.com/address/0x007A22900a3B98143368Bd5906f8E17e9867581b)
-- [DynamicAi First NFT Collection](https://mumbai.polygonscan.com/address/0xc1ba35D68B3B951FFaDbC264041A0868B70B01c0)
-- [DynamicAi Final NFT Collection](https://mumbai.polygonscan.com/address/0x71708CFC7c8dBcDeaC10043C9e50Bf7d22222037)
-- [Demo Vercel Dapp](https://dynamic-ai.vercel.app/)
 
 ## How to start:
 ```bash
