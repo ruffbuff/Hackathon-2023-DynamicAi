@@ -69,5 +69,5 @@ npx hardhat run scripts/deploy.js --network "network-name-here"
 npx hardhat verify --network "network-name-here" "constructor variables if they are "exist"
 ```
 
-![ProjectLogo](https://github.com/RuffBuff/weather_test_DNFT-ERC-721/blob/main/src/log.png)
+![ProjectLogo](https://github.com/ruffbuff/weather_test_DNFT-ERC-721/blob/main/frontend/src/log.png)
 Image was generatd by: Dall-E
