@@ -31,7 +31,6 @@ module.exports = {
         return rule;
       });
 
-      // Ваши существующие настройки resolve и plugins
       webpackConfig.resolve.fallback = {
         stream: require.resolve('stream-browserify'),
         assert: require.resolve('assert/'),

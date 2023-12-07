@@ -54,7 +54,7 @@ function Collection() {
           headers: { 'accept': 'application/json' }
         });
         const data = await response.json();
-
+        console.log('data:', data);
         const initialNfts = data.nfts
           .filter((nft: any) => tokenBurnTimesMap.has(nft.tokenId))
           .map((nft: any) => ({

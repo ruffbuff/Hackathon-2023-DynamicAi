@@ -1,7 +1,7 @@
 // frontend/src/header/Header.tsx
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Box, VStack, Flex, Select, Input, useToast, Text, Image, CircularProgress } from '@chakra-ui/react';
-import { ethers, Contract } from 'ethers';
+import { ethers, BigNumber } from 'ethers';
 import { contracts } from '../sol/contracts';
 import { useConnectionStatus } from "@thirdweb-dev/react";
 import './Header.css';
@@ -23,84 +23,82 @@ function Header() {
     setShowForm(!showForm);
   };
 
-  function listenForURIBatchAdded(contract: Contract) {
-    contract.on("URIBatchAdded", async (tokenId: string, uris: string[], burnInSeconds: number) => {
-      console.log(`Event Caught - Token ID: ${tokenId}, URIs: ${uris}, Burn Time: ${burnInSeconds}`);
-      setIsLoading(true);
-  
-      try {
-        const images = await Promise.all(uris.map(async (uri) => {
-          const controller = new AbortController();
-          const timeoutId = setTimeout(() => controller.abort(), 10000);
-  
-          try {
-            const response = await fetch(uri, { signal: controller.signal });
-            clearTimeout(timeoutId);
-  
-            if (!response.ok) {
-              console.error(`Failed to fetch URI: ${uri}, Status: ${response.status}`);
+  useEffect(() => {
+    if (connectionStatus === "connected") {
+      const provider = new ethers.providers.Web3Provider(window.ethereum);
+      const contract = new ethers.Contract(contracts.weatherContract.address, contractABI, provider);
+
+      const handleURIBatchAdded = async (tokenId: BigNumber, uris: string[], burnInSeconds: BigNumber) => {
+        console.log(`Event Caught - Token ID: ${tokenId}, URIs: ${uris}, Burn Time: ${burnInSeconds}`);
+        setIsLoading(true);
+
+        try {
+          const images = await Promise.all(uris.map(async (uri) => {
+            try {
+              const response = await fetch(uri);
+              if (!response.ok) {
+                console.error(`Failed to fetch URI: ${uri}, Status: ${response.status}`);
+                return '';
+              }
+              const metadata = await response.json();
+              return metadata.image;
+            } catch (error) {
+              console.error(`Error fetching URI: ${uri}`, error);
               return '';
             }
-  
-            const metadata = await response.json();
-            console.log(`Image URL for Token ID ${tokenId}, URI ${uri}: ${metadata.image}`);
-            return metadata.image;
-          } catch (error) {
-            if (error instanceof Error && error.name === 'AbortError') {
-              console.error(`Request to URI: ${uri} timed out`);
-            } else {
-              console.error(`Error fetching URI: ${uri}`, error instanceof Error ? error.message : error);
-            }
-            clearTimeout(timeoutId);
-            return '';
-          }
-        }));
-  
-        setImageUris(images.filter(uri => uri !== ''));
-      } catch (error) {
-        console.error('Error fetching images from URIs:', error instanceof Error ? error.message : error);
-      }
-  
-      setIsLoading(false);
-    });
-  }  
+          }));
+
+          setImageUris(images.filter(uri => uri !== ''));
+        } catch (error) {
+          console.error('Error fetching images from URIs:', error);
+        } finally {
+          setIsLoading(false);
+        }
+      };
+
+      contract.on("URIBatchAdded", handleURIBatchAdded);
+
+      return () => {
+        contract.off("URIBatchAdded", handleURIBatchAdded);
+      };
+    }
+  }, [connectionStatus, contractABI]);
 
   const mintNFT = async () => {
     try {
-      const provider = new ethers.providers.Web3Provider(window.ethereum);
-      const signer = provider.getSigner();
-      const contract = new ethers.Contract(contracts.weatherContract.address, contractABI, signer);
-  
-      const transaction = await contract.mint(animal, name, country, style);
-      await transaction.wait();
-      setIsLoading(true);
-      listenForURIBatchAdded(contract);
+        const provider = new ethers.providers.Web3Provider(window.ethereum);
+        const signer = provider.getSigner();
+        const contract = new ethers.Contract(contracts.weatherContract.address, contractABI, signer);
 
-      toast({
-        title: "NFT Minted",
-        description: "Your NFT has been minted successfully!",
-        status: "success",
-        duration: 5000,
-        isClosable: true,
-      });
+        const transaction = await contract.mint(animal, name, country, style);
+        await transaction.wait();
+        setIsLoading(true);
+
+        toast({
+            title: "NFT Minted",
+            description: "Your NFT has been minted successfully!",
+            status: "success",
+            duration: 5000,
+            isClosable: true,
+        });
     } catch (error) {
-      if (error instanceof Error) {
-        toast({
-          title: "Minting Failed",
-          description: `Error occurred: ${error.message}`,
-          status: "error",
-          duration: 5000,
-          isClosable: true,
-        });
-      } else {
-        toast({
-          title: "Minting Failed",
-          description: "An unknown error occurred.",
-          status: "error",
-          duration: 5000,
-          isClosable: true,
-        });
-      }
+        if (error instanceof Error) {
+            toast({
+                title: "Minting Failed",
+                description: `Error occurred: ${error.message}`,
+                status: "error",
+                duration: 5000,
+                isClosable: true,
+            });
+        } else {
+            toast({
+                title: "Minting Failed",
+                description: "An unknown error occurred.",
+                status: "error",
+                duration: 5000,
+                isClosable: true,
+            });
+        }
     }
   };
 
@@ -153,6 +151,7 @@ function Header() {
           justifyContent="center"
           alignContent="center"
           mt="4"
+          size="100px"
         />
       ) : showForm ? (
         <Box className="info-box" p={6} boxShadow="xl" textColor="#FFA500" rounded="lg" bg="#5e5e5e">
@@ -209,12 +208,20 @@ function Header() {
             width="full"
           >
             {imageUris.map((uri, index) => (
-              <Image key={index} src={uri} alt={`Dynamic NFT Image ${index + 1}`} boxSize="200px" m="2" />
+              <Image
+              key={index}
+              src={uri}
+              alt={`Dynamic NFT Image ${index + 1}`}
+              boxSize="320px"
+              borderRadius="10"
+              p="4"
+              m="4"
+            />
             ))}
           </Flex>
           <Flex justifyContent="center">
             <button onClick={toggleForm} className="mint-btn">
-              Mint Another
+              Back
             </button>
           </Flex>
         </VStack>

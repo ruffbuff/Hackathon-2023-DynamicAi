@@ -7,7 +7,19 @@ padding: 20px;
 }
 
 .nft-name {
-padding: 10px;
+padding: 5px;
 background-color: #FFDEAD;
 text-align: center;
+}
+
+.just-div,
+.nft-holder,
+.nft-attributes {
+font-size: 12px;
+padding: 3px;
+background-color: #FFDEAD;
+}
+
+.nft-holder {
+font-weight: bold;
 }

@@ -4,7 +4,7 @@ import { ethers } from 'ethers';
 import { contracts } from '../sol/contracts';
 import { useAddress } from "@thirdweb-dev/react";
 import './Inventory.css';
-import { Image, Box, Text, Skeleton } from '@chakra-ui/react';
+import { Image, Box, Text, CircularProgress } from '@chakra-ui/react';
 
 interface NFT {
   tokenId: string;
@@ -31,6 +31,8 @@ function Inventory() {
   const [currentTime, setCurrentTime] = useState(Math.floor(Date.now() / 1000));
 
   const [uriIndex, setUriIndex] = useState(0);
+
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const [initialUri, setInitialUri] = useState<string>('');
 
   const [isImageLoading, setIsImageLoading] = useState(true);
@@ -180,23 +182,17 @@ function Inventory() {
 
   const handlePrevUri = () => {
     if (!selectedNft) return;
-    let newIndex = uriIndex === 0 ? 3 : uriIndex - 1;
-    while (selectedNft.attributes[newIndex].value === initialUri && newIndex !== uriIndex) {
-      newIndex = newIndex === 0 ? 3 : newIndex - 1;
-    }
+    let newIndex = (uriIndex - 1 + (selectedNft.uris?.length || 4)) % (selectedNft.uris?.length || 4);
     setUriIndex(newIndex);
     getUriBatch(selectedNft.tokenId, newIndex);
   };
-
+  
   const handleNextUri = () => {
     if (!selectedNft) return;
-    let newIndex = uriIndex === 3 ? 0 : uriIndex + 1;
-    while (selectedNft.attributes[newIndex].value === initialUri && newIndex !== uriIndex) {
-      newIndex = newIndex === 3 ? 0 : newIndex + 1;
-    }
+    let newIndex = (uriIndex + 1) % (selectedNft.uris?.length || 4);
     setUriIndex(newIndex);
     getUriBatch(selectedNft.tokenId, newIndex);
-  };
+  };  
 
   return (
     <Box className="main-container">
@@ -205,7 +201,7 @@ function Inventory() {
           <>
             <Box className="image-box">
               {isImageLoading ? (
-                <Skeleton height="200px" width="200px" />
+                <CircularProgress isIndeterminate size="100px" color="#FFA500" />
               ) : (
                 <Image
                   borderRadius="10px"

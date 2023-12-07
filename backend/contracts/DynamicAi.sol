@@ -1,3 +1,17 @@
+/*
+    ██ ██ ██ ██ ██ ██ ██ ██ ██ ██ ██ ██ ██ ██ ██ ██ ██ ██ ██ ██ ██
+    █                                                            █
+    █   RRRRR   U   U  FFFFF  FFFFF  B   B  U   U  FFFFF  FFFFF  █
+    █   R   R   U   U  F      F      B   B  U   U  F      F      █
+    █   RRRRR   U   U  FFFF   FFFF   BBBBB  U   U  FFFF   FFFF   █
+    █   R  R    U   U  F      F      B   B  U   U  F      F      █
+    █   R   R   UUUUU  F      F      B   B  UUUUU  F      F      █
+    █                                                            █
+    ██ ██ ██ ██ ██ ██ ██ ██ ██ ██ ██ ██ ██ ██ ██ ██ ██ ██ ██ ██ ██
+
+#Wallet: 0xruffbuff.eth
+#Discord: chain.eth | 0xRuffBuff#8817
+*/
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.22;
 import "@openzeppelin/contracts/token/ERC721/extensions/ERC721Enumerable.sol";
@@ -90,17 +104,20 @@ contract Dynamic is AutomationCompatibleInterface, ERC721Enumerable, VRFConsumer
         validAnimals["Fox"] = true;
         validAnimals["Turtle"] = true;
         validStyles["Cartoon"] = true;
-        validStyles["Free"] = true;
+        validStyles["Nature"] = true;
+        validStyles["Surreal"] = true;
+        validStyles["Pokemon"] = true;
         validStyles["Minecraft"] = true;
         validStyles["Retro"] = true;
         validStyles["Cyberpunk"] = true;
     }
 
     function checkUpkeep(bytes calldata /* checkData */) external view override returns (bool upkeepNeeded, bytes memory performData) {
-        for (uint256 i = 1; i <= totalSupply(); i++) {
-            if (block.timestamp >= nextUpdateTime[i]) {
+        for (uint256 i = 0; i < totalSupply(); i++) {
+            uint256 tokenId = tokenByIndex(i);
+            if (block.timestamp >= nextUpdateTime[tokenId] && nextURIIndex[tokenId] < uriBatches[tokenId].length) {
                 upkeepNeeded = true;
-                performData = abi.encode(i);
+                performData = abi.encode(tokenId);
                 break;
             }
         }
@@ -110,6 +127,7 @@ contract Dynamic is AutomationCompatibleInterface, ERC721Enumerable, VRFConsumer
         uint256 tokenId = abi.decode(performData, (uint256));
         if (tokenExists(tokenId) && nextURIIndex[tokenId] < uriBatches[tokenId].length) {
             updateTokenURI(tokenId);
+            nextUpdateTime[tokenId] = block.timestamp + calculateNextUpdateTime(tokenId);
             emit UpkeepPerformed(tokenId, _tokenURIs[tokenId]);
         }
     }
