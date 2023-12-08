@@ -36,7 +36,7 @@ contract Dynamic is AutomationCompatibleInterface, ERC721Enumerable, VRFConsumer
     event WeatherNFTMinted(address minter, uint256 tokenId, string animal, string name, string country, string style);
     event RandomnessRequested(uint256 tokenId, uint256 requestId);
     event RandomnessFulfilled(uint256 tokenId, uint256[] randomNumbers);
-    event URIBatchAdded(uint256 indexed tokenId, string[4] uris, uint256 burnInSeconds);
+    event URIBatchAdded(uint256 indexed tokenId, string[4] uris, uint256 burnInSeconds, string imageURL);
     event UpkeepPerformed(uint256 tokenId, string newURI);
 
     struct WeatherToken {
@@ -167,7 +167,7 @@ contract Dynamic is AutomationCompatibleInterface, ERC721Enumerable, VRFConsumer
         emit RandomnessRequested(tokenId, requestId);
     }
 
-    function addURIBatch(uint256 tokenId, string[4] memory uris, uint256 burnInSeconds) public onlyDev1OrOperator {
+    function addURIBatch(uint256 tokenId, string[4] memory uris, uint256 burnInSeconds, string memory imageURL) public onlyDev1OrOperator {
         require(tokenExists(tokenId), "Token does not exist");
         require(!hasURIBatch[tokenId], "URI batch already added for this token");
         require(uris.length == 4, "URI array must contain exactly 4 URIs");
@@ -186,7 +186,7 @@ contract Dynamic is AutomationCompatibleInterface, ERC721Enumerable, VRFConsumer
         tokenBurnTimes[tokenId] = TokenBurnData(block.timestamp + burnInSeconds, true);
 
         hasURIBatch[tokenId] = true;
-        emit URIBatchAdded(tokenId, uris, burnInSeconds);
+        emit URIBatchAdded(tokenId, uris, burnInSeconds, imageURL);
     }
 
     function updateTokenURI(uint256 tokenId) internal {
