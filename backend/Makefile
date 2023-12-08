@@ -25,9 +25,8 @@ pull:   ## get image
 push:   ## push image to docker 
 	docker push ${LOGIN}/${NAME}:${TAG}
 
-run:    start log
 
-start:  ## start docker
+run:  ## start docker
 	docker run -it -d \
 	-v ${PWD}:/usr/src/app \
 	--restart=always \
@@ -40,4 +39,4 @@ stop:   ## stop and remove container
 log:    ## realtime logging
 	docker logs --tail=300 -f ${NAME}
 
-
+start:    run log
