@@ -43,12 +43,34 @@
   background-color: #FFA500;
 }
 
+.return-btn {
+  background-color: #05111d;
+  color: white;
+  border: none;
+  cursor: pointer;
+  padding: 15px;
+  border-radius: 8px;
+  transition: background-color 0.3s ease;
+  font-weight: bold;
+  display: block;
+  width: 50%;
+  margin: 20px auto;
+}
+
+.return-btn:hover {
+  background-color: #FFA500;
+}
+
 @media (max-width: 768px) {
   .info-box {
     padding: 20px;
   }
 
   .mint-btn {
+    width: 80%;
+  }
+
+  .return-btn {
     width: 80%;
   }
 }
