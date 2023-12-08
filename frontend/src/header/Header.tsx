@@ -1,13 +1,14 @@
 // frontend/src/header/Header.tsx
 import React, { useState, useEffect } from 'react';
 import { Box, VStack, Flex, Select, Input, useToast, Text, Image, CircularProgress } from '@chakra-ui/react';
-import { ethers, BigNumber } from 'ethers';
+import { ethers, BigNumber, Event } from 'ethers';
 import { contracts } from '../sol/contracts';
-import { useConnectionStatus } from "@thirdweb-dev/react";
+import { useConnectionStatus, useAddress } from "@thirdweb-dev/react";
 import './Header.css';
 
 function Header() {
   const connectionStatus = useConnectionStatus();
+  const address = useAddress();
   const toast = useToast();
   const [animal, setAnimal] = useState('');
   const [name, setName] = useState('');
@@ -15,54 +16,84 @@ function Header() {
   const [style, setStyle] = useState('');
   const [imageUris, setImageUris] = useState<string[]>([]);
   const [isLoading, setIsLoading] = useState(false);
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const [showForm, setShowForm] = useState(true);
+  const [mintedTokens, setMintedTokens] = useState<{ tokenId: BigNumber, minter: string }[]>([]);
 
   const contractABI = contracts.weatherContract.abi;
 
-  const toggleForm = () => {
-    setShowForm(!showForm);
-  };
-
   useEffect(() => {
-    if (connectionStatus === "connected") {
-      const provider = new ethers.providers.Web3Provider(window.ethereum);
-      const contract = new ethers.Contract(contracts.weatherContract.address, contractABI, provider);
-
-      const handleURIBatchAdded = async (tokenId: BigNumber, uris: string[], burnInSeconds: BigNumber) => {
-        console.log(`Event Caught - Token ID: ${tokenId}, URIs: ${uris}, Burn Time: ${burnInSeconds}`);
-        setIsLoading(true);
-
-        try {
-          const images = await Promise.all(uris.map(async (uri) => {
-            try {
-              const response = await fetch(uri);
-              if (!response.ok) {
-                console.error(`Failed to fetch URI: ${uri}, Status: ${response.status}`);
-                return '';
-              }
-              const metadata = await response.json();
-              return metadata.image;
-            } catch (error) {
-              console.error(`Error fetching URI: ${uri}`, error);
-              return '';
-            }
-          }));
-
-          setImageUris(images.filter(uri => uri !== ''));
-        } catch (error) {
-          console.error('Error fetching images from URIs:', error);
-        } finally {
-          setIsLoading(false);
+    if (connectionStatus === "connected" && address) {
+      const websocketUrl = process.env.REACT_APP_ALCHEMY_WSS_URL;
+      if (!websocketUrl) {
+        throw new Error('REACT_APP_ALCHEMY_WSS_URL is not defined in .env file');
+      }
+      const websocketProvider = new ethers.providers.WebSocketProvider(websocketUrl);
+      
+      const contract = new ethers.Contract(contracts.weatherContract.address, contractABI, websocketProvider);
+  
+      const handleWeatherNFTMinted = (minter: string, tokenId: BigNumber) => {
+        if (minter.toLowerCase() === address.toLowerCase()) {
+          setMintedTokens(prev => [...prev, { tokenId, minter }]);
         }
       };
-
+  
+      const handleURIBatchAdded = async (
+        tokenId: BigNumber, 
+        uris: string[], 
+        burnInSeconds: BigNumber, 
+        event: Event
+      ) => {
+        if (mintedTokens.some(token => token.tokenId.eq(tokenId) && token.minter.toLowerCase() === address.toLowerCase())) {
+          setIsLoading(true);
+          try {
+            const images = await Promise.all(uris.map(async (uri) => {
+              try {
+                const response = await fetch(uri);
+                if (!response.ok) {
+                  console.error(`Failed to fetch URI: ${uri}, Status: ${response.status}`);
+                  return '';
+                }
+                const metadata = await response.json();
+                console.log('Metadata:', metadata);
+                return metadata.image;
+              } catch (error) {
+                console.error(`Error fetching URI: ${uri}`, error);
+                return '';
+              }
+            }));
+    
+            setImageUris(images.filter(uri => uri !== ''));
+          } catch (error) {
+            console.error('Error fetching images from URIs:', error);
+          } finally {
+            setIsLoading(false);
+          }
+        }
+      };
+  
+      contract.on("WeatherNFTMinted", handleWeatherNFTMinted);
       contract.on("URIBatchAdded", handleURIBatchAdded);
-
+  
       return () => {
-        contract.off("URIBatchAdded", handleURIBatchAdded);
+        try {
+          contract.off("WeatherNFTMinted", handleWeatherNFTMinted);
+          contract.off("URIBatchAdded", handleURIBatchAdded);
+  
+          if (websocketProvider._websocket && 
+              (websocketProvider._websocket.readyState === WebSocket.OPEN || 
+               websocketProvider._websocket.readyState === WebSocket.CONNECTING)) {
+            websocketProvider._websocket.close();
+          }
+        } catch (error) {
+          console.error("Error during WebSocket cleanup:", error);
+        }
       };
     }
-  }, [connectionStatus, contractABI]);
+    if (imageUris.length > 0) {
+      setShowForm(false);
+    }
+  }, [connectionStatus, contractABI, address, mintedTokens, imageUris]);
 
   const mintNFT = async () => {
     try {
@@ -101,6 +132,10 @@ function Header() {
         }
     }
   };
+
+  const handleToggleForm = () => {
+    setShowForm(prevShowForm => !prevShowForm);
+  };  
 
   if (connectionStatus === "disconnected") {
     return (
@@ -153,9 +188,26 @@ function Header() {
           mt="4"
           size="100px"
         />
-      ) : showForm ? (
+      ) : imageUris.length > 0 ? (
+        <VStack
+          spacing={4}
+          align="stretch"
+          className="content-box"
+          width="full"
+          maxWidth="md"
+        >
+          <Flex wrap="wrap" justifyContent="center" width="full">
+            {imageUris.map((uri, index) => (
+              <Image key={index} src={uri} alt={`Dynamic NFT Image ${index + 1}`} boxSize="320px" borderRadius="10" p="4" m="4" />
+            ))}
+          </Flex>
+          <Flex justifyContent="center">
+            <button onClick={handleToggleForm} className="mint-btn">Back to Minting</button>
+          </Flex>
+        </VStack>
+      ) : (
         <Box className="info-box" p={6} boxShadow="xl" textColor="#FFA500" rounded="lg" bg="#5e5e5e">
-            <Select placeholder="Select Animal" textColor="#FFA500" className="select-input" value={animal} onChange={(e) => setAnimal(e.target.value)}>
+              <Select placeholder="Select Animal" textColor="#FFA500" className="select-input" value={animal} onChange={(e) => setAnimal(e.target.value)}>
               <option value="Cat">Cat</option>
               <option value="Dog">Dog</option>
               <option value="Horse">Horse</option>
@@ -187,47 +239,11 @@ function Header() {
               placeholder="Name"
               mb={3}
             />
-          <button onClick={mintNFT} className="mint-btn">
-            Mint DynamicAi
-          </button>
-          <button onClick={toggleForm} className="mint-btn">
-            View Images
-          </button>
-        </Box>
-      ) : (
-        <VStack
-          spacing={4}
-          align="stretch"
-          className="content-box"
-          width="full"
-          maxWidth="md"
-        >
-          <Flex
-            wrap="wrap"
-            justifyContent="center"
-            width="full"
-          >
-            {imageUris.map((uri, index) => (
-              <Image
-              key={index}
-              src={uri}
-              alt={`Dynamic NFT Image ${index + 1}`}
-              boxSize="320px"
-              borderRadius="10"
-              p="4"
-              m="4"
-            />
-            ))}
-          </Flex>
-          <Flex justifyContent="center">
-            <button onClick={toggleForm} className="mint-btn">
-              Back
-            </button>
-          </Flex>
-        </VStack>
-      )}
-    </Flex>
-  );
+        <button onClick={mintNFT} className="mint-btn">Mint DynamicAi</button>
+      </Box>
+    )}
+  </Flex>
+);
 }
 
 export default Header;
