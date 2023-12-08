@@ -40,45 +40,42 @@ function Header() {
   
       const handleURIBatchAdded = async (
         tokenId: BigNumber, 
-        uris: string[], 
+        uris: string[],
         burnInSeconds: BigNumber, 
-        event: Event
+        event: Event,
+        data: any
       ) => {
+        console.log("Received data:", data);
+      
         if (mintedTokens.some(token => token.tokenId.eq(tokenId) && token.minter.toLowerCase() === address.toLowerCase())) {
           setIsLoading(true);
           try {
-            const images = await Promise.all(uris.map(async (uri) => {
-              try {
-                const response = await fetch(uri);
-                if (!response.ok) {
-                  console.error(`Failed to fetch URI: ${uri}, Status: ${response.status}`);
-                  return '';
-                }
-                const metadata = await response.json();
-                console.log('Metadata:', metadata);
-                return metadata.image;
-              } catch (error) {
-                console.error(`Error fetching URI: ${uri}`, error);
-                return '';
-              }
-            }));
-    
-            setImageUris(images.filter(uri => uri !== ''));
+            // Извлечение imageURL из args
+            const imageURL = data.args && data.args.imageURL;
+            console.log("Extracted imageURL:", imageURL);
+      
+            if (typeof imageURL === 'string') {
+              // Разделение imageURL на отдельные URL с использованием запятой
+              const separatedUris = imageURL.split(",").filter(uri => uri.trim() !== '');
+              setImageUris(separatedUris);
+            } else {
+              console.error('imageURL is not a string or undefined:', imageURL);
+            }
           } catch (error) {
-            console.error('Error fetching images from URIs:', error);
+            console.error('Error processing URIs:', error);
           } finally {
             setIsLoading(false);
           }
         }
       };
-  
-      contract.on("WeatherNFTMinted", handleWeatherNFTMinted);
+      
       contract.on("URIBatchAdded", handleURIBatchAdded);
+      contract.on("WeatherNFTMinted", handleWeatherNFTMinted);
   
       return () => {
         try {
-          contract.off("WeatherNFTMinted", handleWeatherNFTMinted);
           contract.off("URIBatchAdded", handleURIBatchAdded);
+          contract.off("WeatherNFTMinted", handleWeatherNFTMinted);
   
           if (websocketProvider._websocket && 
               (websocketProvider._websocket.readyState === WebSocket.OPEN || 
@@ -134,8 +131,9 @@ function Header() {
   };
 
   const handleToggleForm = () => {
-    setShowForm(prevShowForm => !prevShowForm);
-  };  
+    setShowForm(true);
+    setImageUris([]); // Очистка imageUris, чтобы скрыть картинки и показать форму
+  };    
 
   if (connectionStatus === "disconnected") {
     return (
