@@ -4,10 +4,16 @@ Idea is about Burnable-Dynamic NFT postcard/mail, or a NFTs for web3 game like: 
 > Demo Dapp: https://dynamic-ai.vercel.app/
 >
 > Demo Tutorial/Guid: https://vimeo.com/892814613?share=copy
-![ProjectLogo](https://github.com/ruffbuff/weather_test_DNFT-ERC-721/blob/main/frontend/src/Why.jpg)
-![ProjectLogo](https://github.com/ruffbuff/weather_test_DNFT-ERC-721/blob/main/frontend/src/Start.jpg)
-![ProjectLogo](https://github.com/ruffbuff/weather_test_DNFT-ERC-721/blob/main/frontend/src/Mid.jpg)
-![ProjectLogo](https://github.com/ruffbuff/weather_test_DNFT-ERC-721/blob/main/frontend/src/End.jpg)
+![ProjectLogo](https://github.com/ruffbuff/weather_test_DNFT-ERC-721/blob/main/frontend/src/images/Why.jpg)
+![ProjectLogo](https://github.com/ruffbuff/weather_test_DNFT-ERC-721/blob/main/frontend/src/images/Start.jpg)
+![ProjectLogo](https://github.com/ruffbuff/weather_test_DNFT-ERC-721/blob/main/frontend/src/images/Mid.jpg)
+![ProjectLogo](https://github.com/ruffbuff/weather_test_DNFT-ERC-721/blob/main/frontend/src/images/End.jpg)
+
+![ProjectLogo](https://github.com/ruffbuff/weather_test_DNFT-ERC-721/blob/main/frontend/src/images/hackathon.jpg)
+![ProjectLogo](https://github.com/ruffbuff/weather_test_DNFT-ERC-721/blob/main/frontend/src/images/hackathon2.jpg)
+![ProjectLogo](https://github.com/ruffbuff/weather_test_DNFT-ERC-721/blob/main/frontend/src/images/hackathon3.jpg)
+![ProjectLogo](https://github.com/ruffbuff/weather_test_DNFT-ERC-721/blob/main/frontend/src/images/hackathon4.jpg)
+![ProjectLogo](https://github.com/ruffbuff/weather_test_DNFT-ERC-721/blob/main/frontend/src/images/hackathon5.jpg)
 ```bash
 R: @RuffBuff
 A: @Ambientiumim
@@ -173,5 +179,5 @@ npx hardhat run scripts/deploy.js --network "network-name-here"
 npx hardhat verify --network "network-name-here" "constructor variables if they are "exist"
 ```
 
-![ProjectLogo](https://github.com/ruffbuff/weather_test_DNFT-ERC-721/blob/main/frontend/src/log.png)
+![ProjectLogo](https://github.com/ruffbuff/weather_test_DNFT-ERC-721/blob/main/frontend/src/images/log.png)
 Image was generatd by: Dall-E

@@ -13,7 +13,7 @@ import time
 load_dotenv()
 
 #############
-# Donate Wallet  0xA1424c75B7899d49dE57eEF73EabF0e85e093D44
+# Creator Wallet  0xA1424c75B7899d49dE57eEF73EabF0e85e093D44
 #############
 
 CONTRACT_ADDRESS = os.getenv("CONTRACT_ADDRESS")
