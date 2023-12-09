@@ -62,7 +62,7 @@ npm build
 and then start
 ```
 
-## To open Dockerfile:
+## DynNFT BOT you can run dynnft_bot.py  or docker image for it:
 At first please fill `.env` file at `backend/docker/...`
 ```bash
 cd backend

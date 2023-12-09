@@ -138,7 +138,7 @@ def add_milliseconds_and_convert_to_unixtime(numbers):
 
 # Idea Ambientiumim && RuFFbuff
 
-def add_uris_to_token(token_id, uris, burnInSeconds):
+def add_uris_to_token(token_id, uris, burnInSeconds, imageURL):
     max_attempts = 2
     attempt = 0
     tx_receipt = None
@@ -148,7 +148,7 @@ def add_uris_to_token(token_id, uris, burnInSeconds):
         nonce = w3.eth.get_transaction_count(ACCOUNT_ADDRESS)
         chain_id = w3.eth.chain_id
 
-        transaction = contract.functions.addURIBatch(token_id, uris, burnInSeconds).build_transaction({
+        transaction = contract.functions.addURIBatch(token_id, uris, burnInSeconds, imageURL).build_transaction({
             "chainId": chain_id,
             "from": ACCOUNT_ADDRESS,
             'gas': dynamic_max_fee_per_gas,
@@ -258,7 +258,7 @@ async def handle_event(event):
             expiration_time, added_seconds = add_milliseconds_and_convert_to_unixtime(
                 randtime)
             logger.info(str(f'expiration_time: {expiration_time}'))
-            logger.info(str(f'add tim: {added_seconds}'))
+            logger.info(str(f'add time: {added_seconds}'))
             # added_seconds = 300
             times_of_day_prompts = {
                 "night": f"Draw image: Time of day: Night, Place:{country}, Mood: Fanny, Character: {animal}, Style: {style}",
@@ -293,12 +293,19 @@ async def handle_event(event):
                     metas.append(cid)
                     os.remove(json_filename)
 
+            prepare_img = [
+                pref_domain + cid for cid in cids]
+
+            prepare_img = ','.join(prepare_img)
+
+            logger.info(str(f'prepare_img : , {prepare_img}'))
+
             prepare_metas = [
                 pref_domain + meta for meta in metas]
 
             logger.info(str(f'prepare_metas : , {prepare_metas}'))
             tx_queue.put_nowait(
-                {'func': 'add_uris', 'token_id': token_id,  'prepare_metas': prepare_metas, 'expiration_time': added_seconds})
+                {'func': 'add_uris', 'token_id': token_id,  'prepare_metas': prepare_metas, 'expiration_time': added_seconds, 'imageURL': prepare_img})
 
             cids.clear()
             metas.clear()
@@ -355,21 +362,17 @@ async def process_tx_queue():
                     burn_token(token_id)
 
             elif tx_data['func'] == 'add_uris':
-                # предполагая, что это асинхронная функция
-                # await send_data(tx_data['data'])
                 logger.info(str(f'####  URIS writting ... #### '))
                 token_id = tx_data['token_id']
                 prepare_metas = tx_data['prepare_metas']
                 expiration_time = tx_data['expiration_time']
-                add_uris_to_token(token_id, prepare_metas, expiration_time)
+                prepare_img = tx_data['imageURL']
+                add_uris_to_token(token_id, prepare_metas, expiration_time, prepare_img)
 
-                # await send_tx() 
         await asyncio.sleep(2)
 
 
 async def main():
-    # web3 = Web3(WebsocketProvider(RPC_WS_URL))
-    # contract = web3.eth.contract(address=CONTRACT_ADDRESS, abi=ABI_JSON)
     logger.info(CONTRACT_ADDRESS)
     w3 = Web3(Web3.HTTPProvider(HTTPProvider_RPC))
     contract = w3.eth.contract(address=CONTRACT_ADDRESS, abi=ABI_JSON)
@@ -380,8 +383,6 @@ async def main():
         fromBlock='latest')
     randomness_fulfilled_filter = contract.events.RandomnessFulfilled.create_filter(
         fromBlock='latest')
-    # burded_filter = contract.events.TokenShouldBeBurned.create_filter(
-    #     fromBlock='latest')
 
     await asyncio.gather(
         log_loop(weather_nft_minted_filter, 1),
