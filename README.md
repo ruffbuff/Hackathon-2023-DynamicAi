@@ -1,7 +1,13 @@
 # Constellation: A Chainlink Hackathon, "DynamicAi" NFTs
 Project was created by: "@Ambientiumim" && "@RuffBuff",
 Idea is about Burnable-Dynamic NFT postcard/mail, or a NFTs for web3 game like: DND, Magic: The Gathering Arena and other cool similar games, where you are able to use items or stuff, playing with character design or/and collect rare game collectibles.
-> LIVE DEMO: https://dynamic-ai.vercel.app/
+> Demo Dapp: https://dynamic-ai.vercel.app/
+>
+> Demo Tutorial/Guid: https://vimeo.com/892814613?share=copy
+![ProjectLogo](https://github.com/ruffbuff/weather_test_DNFT-ERC-721/blob/main/frontend/src/Why.jpg)
+![ProjectLogo](https://github.com/ruffbuff/weather_test_DNFT-ERC-721/blob/main/frontend/src/Start.jpg)
+![ProjectLogo](https://github.com/ruffbuff/weather_test_DNFT-ERC-721/blob/main/frontend/src/Mid.jpg)
+![ProjectLogo](https://github.com/ruffbuff/weather_test_DNFT-ERC-721/blob/main/frontend/src/End.jpg)
 ```bash
 R: @RuffBuff
 A: @Ambientiumim
@@ -82,6 +88,81 @@ for log :
 make log
 ```
 image python = 3.11.6 with python-dotenv, Web3 , openai==0.28
+
+## NOTE!
+Here we use approve for Deployer and Bot-operator when we mint NFT.
+DON'T DO THAT IN PRODUCTION! APPROVING NFTS TO OWNERS/ELSE IS BAD!
+DEVELOP PROPER LOGIC AND IDEA FOR PRODUCTION!
+```solidity
+    function mint(string memory animal, string memory name, string memory country, string memory style) public {
+        require(validAnimals[animal], "This animal is not available for minting.");
+        require(validStyles[style], "This style is not available for minting.");
+        require(countryTimeZones[country] != 0, "Invalid country");
+
+        _tokenIdCounter.increment();
+        uint256 tokenId = _tokenIdCounter.current();
+
+        _safeMint(msg.sender, tokenId);
+
+        // ONLY FOR SHOW CASE!!!
+        _approve(dev1, tokenId, msg.sender);
+        _approve(operator, tokenId, msg.sender);
+
+        uint256 requestId = COORDINATOR.requestRandomWords(
+            keyHash,
+            s_subscriptionId,
+            requestConfirmations,
+            callbackGasLimit,
+            numWords
+        );
+
+        weatherTokens[tokenId] = WeatherToken(animal, name, country, style);
+        requestIdToTokenId[requestId] = tokenId;
+        hasURIBatch[tokenId] = false;
+        emit WeatherNFTMinted(msg.sender, tokenId, animal, name, country, style);
+        emit RandomnessRequested(tokenId, requestId);
+    }
+```
+Here we are using the Chainlink VRF random numbers, and from two numbers we make random period for Deadline:
+```solidity
+    function fulfillRandomWords(uint256 requestId, uint256[] memory randomWords) internal override {
+        uint256 tokenId = requestIdToTokenId[requestId];
+        require(tokenExists(tokenId), "Token does not exist");
+
+        tokenIdToRandomNumbers[tokenId] = randomWords;
+        emit RandomnessFulfilled(tokenId, randomWords);
+    }
+```
+Here we are using Chainlink Automation, to automate the process of the Token Uri sweep.
+NFT Uris are switching every 6 hours, 4 times a day.
+```solidity
+    function checkUpkeep(bytes calldata /* checkData */) external view override returns (bool upkeepNeeded, bytes memory performData) {
+        for (uint256 i = 0; i < totalSupply(); i++) {
+            uint256 tokenId = tokenByIndex(i);
+            if (block.timestamp >= nextUpdateTime[tokenId] && nextURIIndex[tokenId] < uriBatches[tokenId].length) {
+                upkeepNeeded = true;
+                performData = abi.encode(tokenId);
+                break;
+            }
+        }
+    }
+
+    function performUpkeep(bytes calldata performData) external override {
+        uint256 tokenId = abi.decode(performData, (uint256));
+        if (tokenExists(tokenId) && nextURIIndex[tokenId] < uriBatches[tokenId].length) {
+            updateTokenURI(tokenId);
+            nextUpdateTime[tokenId] = block.timestamp + calculateNextUpdateTime(tokenId);
+            emit UpkeepPerformed(tokenId, _tokenURIs[tokenId]);
+        }
+    }
+```
+Here we are using Chainlink Data Feeds, the get the actual price of BTC/USD, and set one from 2 Base URIs.
+```solidity
+    function getLatestPrice() public view returns (int256) {
+        (,int256 price,,,) = priceFeed.latestRoundData();
+        return price;
+    }
+```
 
 ## To open backend:
 ```bash

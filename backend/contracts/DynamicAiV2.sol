@@ -31,11 +31,11 @@ contract DynamicV2 is ERC721 {
     address private addressOfFirstContract;
     AggregatorV3Interface internal priceFeed;
 
-    string private bullMarketURI;
-    string private bearMarketURI;
-    int256 private bearMarketThreshold = 3870000000000;
+    string private bullMarketURI; // First URI
+    string private bearMarketURI; // Second URI
+    int256 private bearMarketThreshold = 3870000000000; // Max threshold
 
-    modifier onlyDev1OrOperator() {
+    modifier onlyDev1OrOperator() { // Only for show-case!
         require(msg.sender == dev1 || msg.sender == operator, "Caller is not authorized");
         _;
     }
@@ -48,11 +48,14 @@ contract DynamicV2 is ERC721 {
         priceFeed = AggregatorV3Interface(0x007A22900a3B98143368Bd5906f8E17e9867581b); // BTC/USD address on Mumbai
     }
 
+    // Get latest BTC/USD price, using Chainlink Data Feeds.
     function getLatestPrice() public view returns (int256) {
         (,int256 price,,,) = priceFeed.latestRoundData();
         return price;
     }
 
+    // New NFT mints only if first contract calls.
+    // First contract will call this only after burn fucntion.
     function mint(address to) public {
         require(msg.sender == addressOfFirstContract, "Only first contract can mint");
         int256 currentPrice = getLatestPrice();
@@ -87,10 +90,13 @@ contract DynamicV2 is ERC721 {
         return ownerOf(tokenId) != address(0);
     }
 
+    // Set first NFT contract address.
     function setFirstContractAddress(address _address) external onlyDev1OrOperator {
         addressOfFirstContract = _address;
     }
 
+    // Set BTC/USD threshold.
+    // If price hits less than treshold == Bull, else Bear.
     function setBearMarketThreshold(int256 newThreshold) external onlyDev1OrOperator {
         bearMarketThreshold = newThreshold;
     }

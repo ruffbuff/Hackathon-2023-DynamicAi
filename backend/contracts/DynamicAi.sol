@@ -112,6 +112,7 @@ contract Dynamic is AutomationCompatibleInterface, ERC721Enumerable, VRFConsumer
         validStyles["Cyberpunk"] = true;
     }
 
+    // Automation checks if next update time is needed.
     function checkUpkeep(bytes calldata /* checkData */) external view override returns (bool upkeepNeeded, bytes memory performData) {
         for (uint256 i = 0; i < totalSupply(); i++) {
             uint256 tokenId = tokenByIndex(i);
@@ -123,6 +124,7 @@ contract Dynamic is AutomationCompatibleInterface, ERC721Enumerable, VRFConsumer
         }
     }
 
+    // Automation changed next Token URI every 6 hours, 4 times a day.
     function performUpkeep(bytes calldata performData) external override {
         uint256 tokenId = abi.decode(performData, (uint256));
         if (tokenExists(tokenId) && nextURIIndex[tokenId] < uriBatches[tokenId].length) {
@@ -132,6 +134,7 @@ contract Dynamic is AutomationCompatibleInterface, ERC721Enumerable, VRFConsumer
         }
     }
 
+    // VRF random words are used to set random period for NFT Deadline.
     function fulfillRandomWords(uint256 requestId, uint256[] memory randomWords) internal override {
         uint256 tokenId = requestIdToTokenId[requestId];
         require(tokenExists(tokenId), "Token does not exist");
@@ -140,6 +143,8 @@ contract Dynamic is AutomationCompatibleInterface, ERC721Enumerable, VRFConsumer
         emit RandomnessFulfilled(tokenId, randomWords);
     }
 
+    // Mint first NFT collection for free, and give approve for Operator && Deployer
+    // (This was set for show-case only, in production it's better to set only for bot-operator or Chainlink Functions)
     function mint(string memory animal, string memory name, string memory country, string memory style) public {
         require(validAnimals[animal], "This animal is not available for minting.");
         require(validStyles[style], "This style is not available for minting.");
@@ -149,6 +154,8 @@ contract Dynamic is AutomationCompatibleInterface, ERC721Enumerable, VRFConsumer
         uint256 tokenId = _tokenIdCounter.current();
 
         _safeMint(msg.sender, tokenId);
+
+        // ONLY FOR SHOW CASE!!!
         _approve(dev1, tokenId, msg.sender);
         _approve(operator, tokenId, msg.sender);
 
@@ -167,6 +174,8 @@ contract Dynamic is AutomationCompatibleInterface, ERC721Enumerable, VRFConsumer
         emit RandomnessRequested(tokenId, requestId);
     }
 
+    // Bot-operator set's batch uris for NFT, and calculates next update time.
+    // Bot also check's for what country have set in mint.
     function addURIBatch(uint256 tokenId, string[4] memory uris, uint256 burnInSeconds, string memory imageURL) public onlyDev1OrOperator {
         require(tokenExists(tokenId), "Token does not exist");
         require(!hasURIBatch[tokenId], "URI batch already added for this token");
@@ -189,12 +198,14 @@ contract Dynamic is AutomationCompatibleInterface, ERC721Enumerable, VRFConsumer
         emit URIBatchAdded(tokenId, uris, burnInSeconds, imageURL);
     }
 
+    // Bot-operators updates Token URI.
     function updateTokenURI(uint256 tokenId) internal {
         _setTokenURI(tokenId, uriBatches[tokenId][nextURIIndex[tokenId]]);
         nextURIIndex[tokenId] = (nextURIIndex[tokenId] + 1) % uriBatches[tokenId].length;
         nextUpdateTime[tokenId] = block.timestamp + calculateNextUpdateTime(tokenId);
     }
 
+    // Bot-operator calculates next upate time.
     function calculateNextUpdateTime(uint256 tokenId) private view returns (uint256) {
         int8 timeZone = countryTimeZones[weatherTokens[tokenId].country];
         uint256 countryTime = calculateCountryTime(block.timestamp, timeZone);
@@ -242,6 +253,7 @@ contract Dynamic is AutomationCompatibleInterface, ERC721Enumerable, VRFConsumer
         }
     }
 
+    // Only Bot-operator or Dev, can Burn NFTs.
     function burnToken(uint256 tokenId) public onlyDev1OrOperator {
         require(tokenExists(tokenId), "Token ID does not exist");
         
@@ -257,6 +269,8 @@ contract Dynamic is AutomationCompatibleInterface, ERC721Enumerable, VRFConsumer
         IDynamicV2(secondContractAddress).mint(owner);
     }
 
+    // Read function for Bot-operator script.
+    // You can see list of holders + nft ids + time left for burn.
     function getAllTokenBurnTimes() public view returns (address[] memory, uint256[] memory, uint256[] memory) {
         uint256 tokenCount = totalSupply();
         uint256 activeTokenCount = 0;
@@ -286,12 +300,14 @@ contract Dynamic is AutomationCompatibleInterface, ERC721Enumerable, VRFConsumer
         return (owners, ids, burnTimes);
     }
 
+    // Retur Token Uri.
     function tokenURI(uint256 tokenId) public view override returns (string memory) {
         string memory uri = _tokenURIs[tokenId];
         require(bytes(uri).length > 0, "ERC721URIStorage: URI query for nonexistent token");
         return uri;
     }
 
+    // Is owner of the NFT.
     function tokenExists(uint256 tokenId) public view returns (bool) {
         return ownerOf(tokenId) != address(0);
     }
@@ -300,6 +316,7 @@ contract Dynamic is AutomationCompatibleInterface, ERC721Enumerable, VRFConsumer
         _tokenURIs[tokenId] = uri;
     }
 
+    // Add-on function to add new options for promt.
     function addAnimal(string memory animal) public onlyDev1OrOperator {
         validAnimals[animal] = true;
     }
@@ -308,10 +325,12 @@ contract Dynamic is AutomationCompatibleInterface, ERC721Enumerable, VRFConsumer
         validStyles[style] = true;
     }
 
+    // Set new Bot-operator.
     function setUpOperator(address _operator) external onlyDev1OrOperator {
         operator = _operator;
     }
 
+    // Set second NFT contract address.
     function setSecondContractAddress(address _secondContract) external onlyDev1OrOperator {
         secondContractAddress = _secondContract;
     }
